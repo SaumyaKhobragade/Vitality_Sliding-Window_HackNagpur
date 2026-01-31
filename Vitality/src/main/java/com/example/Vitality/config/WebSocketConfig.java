@@ -38,7 +38,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         registry.addEndpoint("/ws")
-                .setAllowedOriginPatterns("*")  // Allow all origins - restrict in production
+                .setAllowedOrigins("http://localhost:3000") // Explicitly allow frontend origin
                 .withSockJS();  // Enable SockJS fallback for compatibility
     }
 }

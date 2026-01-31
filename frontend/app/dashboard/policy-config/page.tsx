@@ -17,6 +17,10 @@ import { CustomSwitch } from "@/components/ui/custom-switch";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ConfirmationDialog } from "@/app/Components/dashboard/ConfirmationDialog";
+import { LoadingDialog } from "@/app/Components/dashboard/LoadingDialog";
+import { SuccessToast } from "@/app/Components/dashboard/SuccessToast";
+import { AlertBanner } from "@/app/Components/dashboard/AlertBanner";
 
 const PolicyConfig = () => {
   // State for configuration
@@ -25,6 +29,43 @@ const PolicyConfig = () => {
   const [agingRate, setAgingRate] = useState(15); // Minutes
   const [enableAging, setEnableAging] = useState(true);
   const [distressDecay, setDistressDecay] = useState(0.5);
+
+  // State for dialogs and toasts
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [showLoadingDialog, setShowLoadingDialog] = useState(false);
+  const [showToast, setShowToast] = useState(false);
+  const [showCrisisAlert, setShowCrisisAlert] = useState(false);
+
+  // Handlers
+  const handlePolicyChange = (policyId: string) => {
+    setActivePolicy(policyId);
+    if (policyId === "CRISIS_OVERRIDE") {
+      setShowCrisisAlert(true);
+    } else {
+      setShowCrisisAlert(false);
+    }
+  };
+
+  const handleSavePolicy = () => {
+    setShowConfirmDialog(true);
+  };
+
+  const handleConfirmSave = async () => {
+    setShowConfirmDialog(false);
+    setShowLoadingDialog(true);
+    // Simulate API call and propagation
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    setShowLoadingDialog(false);
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 3000);
+  };
+
+  const handleReset = () => {
+    setSeverityWeight(0.85);
+    setAgingRate(15);
+    setEnableAging(true);
+    setDistressDecay(0.5);
+  };
 
   // Policy options
   const policies = [
@@ -102,7 +143,7 @@ const PolicyConfig = () => {
               {policies.map((policy) => (
                 <div
                   key={policy.id}
-                  onClick={() => setActivePolicy(policy.id)}
+                  onClick={() => handlePolicyChange(policy.id)}
                   className={`relative flex cursor-pointer items-center justify-between rounded-xl border p-4 transition-all duration-200 ${activePolicy === policy.id
                       ? "border-brand-primary/30 bg-alert-bg-sky shadow-sm ring-1 ring-brand-primary/20"
                       : "border-transparent hover:bg-neutral-bg-main"
@@ -316,11 +357,15 @@ const PolicyConfig = () => {
             <div className="flex items-center justify-end gap-3">
               <Button
                 variant="outline"
+                onClick={handleReset}
                 className="text-neutral-text-secondary border-neutral-border hover:bg-neutral-bg-main rounded-xl px-6"
               >
                 Reset Changes
               </Button>
-              <Button className="bg-brand-primary hover:bg-brand-primary/90 text-white rounded-xl px-6 shadow-md shadow-brand-primary/20 flex items-center gap-2">
+              <Button
+                onClick={handleSavePolicy}
+                className="bg-brand-primary hover:bg-brand-primary/90 text-white rounded-xl px-6 shadow-md shadow-brand-primary/20 flex items-center gap-2"
+              >
                 <Save size={18} />
                 Save Policy
               </Button>
@@ -328,6 +373,55 @@ const PolicyConfig = () => {
           </div>
         </div>
       </div>
+
+      {/* Crisis Alert Banner */}
+      {showCrisisAlert && (
+        <div className="fixed top-20 left-0 right-0 z-50 px-8">
+          <AlertBanner
+            variant="error"
+            title="Crisis Override Mode Activated"
+            description="This policy is designed for mass casualty events. All standard triage protocols will be overridden."
+            action={{
+              label: "View Documentation",
+              onClick: () => console.log("View docs"),
+            }}
+            onDismiss={() => setShowCrisisAlert(false)}
+          />
+        </div>
+      )}
+
+      {/* Confirmation Dialog */}
+      <ConfirmationDialog
+        open={showConfirmDialog}
+        onOpenChange={setShowConfirmDialog}
+        title="Confirm Policy Changes"
+        description="Are you sure you want to save these policy changes?"
+        highlightedText={activePolicy}
+        impactText="Changes will propagate to 12 connected triage nodes within 30 seconds."
+        confirmLabel="Save Policy"
+        cancelLabel="Cancel"
+        onConfirm={handleConfirmSave}
+        variant="warning"
+      />
+
+      {/* Loading Dialog */}
+      <LoadingDialog
+        open={showLoadingDialog}
+        title="Applying Policy Changes"
+        description="Propagating changes to all connected triage nodes. This may take up to 30 seconds..."
+      />
+
+      {/* Success Toast */}
+      {showToast && (
+        <div className="fixed top-4 right-4 z-50">
+          <SuccessToast
+            title="Policy Saved Successfully"
+            description="Changes have been applied to all triage nodes."
+            variant="success"
+            onClose={() => setShowToast(false)}
+          />
+        </div>
+      )}
     </div>
   );
 };

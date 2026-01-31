@@ -10,7 +10,7 @@
 - [x] Task: Conductor - User Manual Verification 'Data Architecture' (Protocol in workflow.md)
 
 ## Phase 2: Component Integration
-- [ ] Task: Refactor PatientFlowChart Component
+- [x] Task: Refactor PatientFlowChart Component 9b40cd3
     - [ ] Write unit tests for PatientFlowChart rendering with mock data.
     - [ ] Update component to fetch data on mount.
     - [ ] Replace hardcoded chart data with state-driven dynamic data.

@@ -57,4 +57,11 @@ public class SurgeDetectorService {
         pruneOldEntries(System.currentTimeMillis());
         return arrivalTimestamps.size();
     }
+
+    public void reset() {
+        arrivalTimestamps.clear();
+        surgeActive = false;
+        Patient.setAgingFactor(0.5); // Reset Factor
+        System.out.println("Surge Detector Reset.");
+    }
 }

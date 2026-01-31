@@ -9,8 +9,64 @@ import org.springframework.stereotype.Service;
 import java.util.*;
 import java.util.concurrent.PriorityBlockingQueue;
 
+import org.springframework.scheduling.annotation.Scheduled;
+
 @Service
 public class OrchestratorService {
+
+    // Auto-monitor every 5 seconds
+    @Scheduled(fixedRate = 7000)
+    public void monitorAndRedirect() {
+        if (hospitalService.getAllHospitals().isEmpty())
+            return;
+
+        StringBuilder queueStats = new StringBuilder(">> [Auto-Monitor] Queues: ");
+        int totalScanned = 0;
+        int totalMoved = 0;
+
+        // Iterate all hospitals
+        for (Hospital h : hospitalService.getAllHospitals()) {
+            // Append stats for debugging
+            int nurseQ = h.getDepartmentQueueSize(Department.NURSE);
+            int genQ = h.getDepartmentQueueSize(Department.GENERAL);
+            int icuQ = h.getDepartmentQueueSize(Department.ICU);
+            queueStats.append(String.format("[%s: N%d G%d I%d] ", h.getId(), nurseQ, genQ, icuQ));
+
+            for (Department dept : Department.values()) {
+                int[] stats = checkQueueForRedirects(h, dept);
+                totalScanned += stats[0];
+                totalMoved += stats[1];
+            }
+        }
+
+        System.out.println(queueStats.toString());
+        System.out.println(">> [Auto-Monitor] Cycle Result -> Scanned: " + totalScanned + " | Moved: " + totalMoved);
+    }
+
+    private int[] checkQueueForRedirects(Hospital source, Department dept) {
+        if (!source.getWaitingRooms().containsKey(dept))
+            return new int[] { 0, 0 };
+
+        // Snapshot array to avoid Cme
+        Object[] patients = source.getWaitingRooms().get(dept).toArray();
+        int scanned = 0;
+        int moved = 0;
+
+        for (Object obj : patients) {
+            if (scanned++ > 20)
+                break; // Increased from 5 to 20 to catch more candidates
+
+            Patient p = (Patient) obj;
+            String bestTarget = evaluateRedirection(p.getId(), source.getId());
+
+            if (bestTarget != null && !bestTarget.equals(source.getId())) {
+                boolean success = hospitalService.transferPatient(p.getId(), source.getId(), bestTarget);
+                if (success)
+                    moved++;
+            }
+        }
+        return new int[] { scanned, moved };
+    }
 
     private final HospitalService hospitalService;
     private final SurgeDetectorService surgeDetectorService;
@@ -63,23 +119,26 @@ public class OrchestratorService {
      */
     public String evaluateRedirection(String patientId, String sourceHospitalId) {
         Hospital source = hospitalService.getHospital(sourceHospitalId);
-        if (source == null)
+        Patient patient = hospitalService.findPatient(patientId);
+
+        if (source == null || patient == null)
             return null;
+
+        // Determine which queue matters
+        Department requiredDept = hospitalService.getDepartmentForSeverity(patient.getBaseSeverity());
 
         double maxScore = -1.0;
         String bestTargetId = sourceHospitalId;
 
-        // Current estimated wait at source (Simple heuristic: queueSize *
-        // avgTreatmentTime / activeDoctors)
-        // For hackathon, just use queue size as detailed simulation is hard
-        double waitSource = source.getTotalQueueSize();
+        // Get queue size ONLY for the relevant department
+        double waitSource = source.getDepartmentQueueSize(requiredDept);
 
         for (Hospital candidate : getAllHospitals()) {
             if (candidate.getId().equals(sourceHospitalId))
                 continue;
 
-            double waitCandidate = candidate.getTotalQueueSize();
-            double travelCost = 5.0;
+            double waitCandidate = candidate.getDepartmentQueueSize(requiredDept);
+            double travelCost = 3.0; // Reduced from 5.0 to allow more granular load balancing
 
             double benefit = waitSource - (waitCandidate + travelCost);
 
@@ -90,8 +149,9 @@ public class OrchestratorService {
         }
 
         if (!bestTargetId.equals(sourceHospitalId)) {
-            System.out.println("Orchestrator: SUGGEST REDIRECT " + patientId + " from " + sourceHospitalId + " to "
-                    + bestTargetId + " (Benefit: " + maxScore + ")");
+            // System.out.println("Orchestrator: SUGGEST REDIRECT " + patientId + " from " +
+            // sourceHospitalId + " to "
+            // + bestTargetId + " (Benefit: " + maxScore + ")");
         }
 
         return bestTargetId;

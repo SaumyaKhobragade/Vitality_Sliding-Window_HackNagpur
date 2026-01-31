@@ -4,10 +4,13 @@ import lombok.Data;
 import lombok.Builder;
 import java.util.Map;
 import java.util.Queue;
+import java.util.Deque;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @Data
 @Builder
@@ -23,12 +26,23 @@ public class Hospital {
     @Builder.Default
     private Map<Department, ThreadPoolExecutor> departmentalStaff = new ConcurrentHashMap<>();
 
+    // Controls for graceful shutdown of specific doctor threads
+    @Builder.Default
+    private Map<Department, Deque<AtomicBoolean>> staffControl = new ConcurrentHashMap<>();
+
     // Metrics
     @Builder.Default
     private AtomicInteger activeTreatments = new AtomicInteger(0);
 
     public int getTotalQueueSize() {
         return waitingRooms.values().stream().mapToInt(Queue::size).sum();
+    }
+
+    public int getDepartmentQueueSize(Department dept) {
+        if (waitingRooms.containsKey(dept)) {
+            return waitingRooms.get(dept).size();
+        }
+        return 0;
     }
 
     public int getActiveDoctorCount() {

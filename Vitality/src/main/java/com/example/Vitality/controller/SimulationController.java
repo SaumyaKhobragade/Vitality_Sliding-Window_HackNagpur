@@ -7,7 +7,10 @@ import com.example.Vitality.service.OrchestratorService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import java.util.Random;
+import java.util.HashMap;
 import java.util.Map;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 
 @RestController
 @RequestMapping("/api/simulation")
@@ -103,5 +106,59 @@ public class SimulationController {
         }
 
         return "Patient not found (ID: " + patientId + ")";
+    }
+
+    @GetMapping("/testInitialization")
+    public String initForTest() {
+        Map<String, String> m = new HashMap<>();
+        m.put("count", "3");
+        initializeCity(m);
+        m.put("count", "1000");
+        triggerSurge(m);
+
+        return "Initialized Test With 3 Hospitals and 1000 Patients.";
+
+    }
+
+    @PostMapping("/staffing")
+    public String updateStaffing(@RequestBody Map<String, Object> body) {
+        String hospitalId = (String) body.get("hospitalId");
+        String deptStr = (String) body.get("department");
+        int count = Integer.parseInt(body.get("count").toString());
+
+        com.example.Vitality.model.Department dept = com.example.Vitality.model.Department.valueOf(deptStr);
+        hospitalService.updateStaffCount(hospitalId, dept, count);
+        return "Updated " + hospitalId + " [" + dept + "] to " + count + " active staff.";
+    }
+
+    @PostMapping("/staffing/shortage")
+    public String triggerGlobalShortage(@RequestBody(required = false) Map<String, Double> body) {
+        // Default shortage is 40% (i.e. reduce capacity to 60%)
+        double factor = (body != null && body.containsKey("factor")) ? body.get("factor") : 0.6;
+
+        System.out.println(">>> ⚠️  TRIGGERING STAFF SHORTAGE (Factor: " + factor + ") <<<");
+
+        int totalReduced = 0;
+        for (Hospital h : orchestratorService.getAllHospitals()) {
+            // Reduce Nurses (Default 10)
+            int currentNurse = h.getDepartmentalStaff().get(com.example.Vitality.model.Department.NURSE)
+                    .getCorePoolSize();
+            int newNurse = Math.max(1, (int) (currentNurse * factor));
+            hospitalService.updateStaffCount(h.getId(), com.example.Vitality.model.Department.NURSE, newNurse);
+
+            // Reduce General (Default 5)
+            int currentGen = h.getDepartmentalStaff().get(com.example.Vitality.model.Department.GENERAL)
+                    .getCorePoolSize();
+            int newGen = Math.max(1, (int) (currentGen * factor));
+            hospitalService.updateStaffCount(h.getId(), com.example.Vitality.model.Department.GENERAL, newGen);
+
+            // Reduce ICU (Default 2 -> likely 1)
+            int currentICU = h.getDepartmentalStaff().get(com.example.Vitality.model.Department.ICU).getCorePoolSize();
+            int newICU = Math.max(1, (int) (currentICU * factor));
+            hospitalService.updateStaffCount(h.getId(), com.example.Vitality.model.Department.ICU, newICU);
+        }
+
+        return "Global Staff Shortage Applied (Remaining Capacity: " + (factor * 100)
+                + "%). Doctors entering retirement after current patient.";
     }
 }

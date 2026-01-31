@@ -18,14 +18,9 @@
     - [ ] Write unit tests for \SimulationProvider\ verifying state updates from socket events.
 - [x] Task: Conductor - User Manual Verification 'WebSocket Infrastructure' (Protocol in workflow.md)
 
-## Phase 3: UI Integration and Component Refactoring
+## Phase 3: UI Integration and Component Refactoring [checkpoint: 01e655e]
 - [x] Task: Integrate Real Data into Dashboard Components 4d6985c
-    - [ ] Refactor \DashboardStats\ to consume live data from \SimulationProvider\.
-    - [ ] Refactor \PatientFlowChart\ to visualize real-time patient flow from the backend.
-    - [ ] Update \HospitalStatusList\ and \LiveImpactAnalysis\ to reflect the active backend simulation state.
-    - [ ] Implement the connection status badge in \DashboardNavBar\.
-    - [ ] Write integration tests for these components to ensure they render correctly with data from the context.
-- [ ] Task: Conductor - User Manual Verification 'UI Integration and Component Refactoring' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'UI Integration and Component Refactoring' (Protocol in workflow.md)
 
 ## Phase 4: Final Verification and Polishing
 - [ ] Task: End-to-End Simulation Testing

@@ -1,5 +1,4 @@
 import React from "react";
-import { DashboardNavBar } from "../Components/Navigation/DashboardNavBar";
 import DashboardStats from "../Components/Common/DashboardStats";
 import PatientFlowChart from "../Components/Charts/PatientFlowChart";
 import OperationsAlerts from "../Components/alerts/OperationsAlerts";
@@ -9,7 +8,6 @@ import { Filter, ArrowUpDown } from "lucide-react";
 const page = () => {
   return (
     <div className="bg-background-light dark:bg-background-dark font-body text-text-light dark:text-text-dark antialiased transition-colors duration-200">
-      <DashboardNavBar />
       <main className="flex-1 overflow-y-auto p-6 bg-background-light dark:bg-background-dark transition-colors duration-200">
         <div className="mb-8">
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white">

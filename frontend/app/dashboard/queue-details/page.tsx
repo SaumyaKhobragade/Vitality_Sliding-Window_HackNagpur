@@ -364,52 +364,9 @@ const QueueDetailsPage = () => {
     ];
 
     return (
-        <div className="flex h-screen overflow-hidden">
+        <div className="flex h-full overflow-hidden">
             {/* Main Content */}
             <main className="flex flex-1 flex-col overflow-hidden">
-                {/* Header */}
-                <header className="flex h-20 items-center justify-between gap-4 border-b border-border bg-card px-8">
-                    <div className="flex items-center gap-4 lg:hidden">
-                        <button className="text-muted-foreground hover:text-foreground">
-                            <Activity className="h-6 w-6" />
-                        </button>
-                        <span className="text-lg font-bold">Vitality</span>
-                    </div>
-                    <div className="flex flex-1 items-center gap-4 lg:gap-8">
-                        <div className="hidden w-full max-w-md lg:block">
-                            <SearchBar
-                                placeholder="Search patient ID, doctor, or treatment..."
-                                variant="rounded"
-                                size="md"
-                            />
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-4">
-                        <button className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/30 hover:bg-primary/90 transition-transform hover:scale-105">
-                            <Plus className="h-5 w-5" />
-                        </button>
-                        <button className="relative rounded-full p-2 text-muted-foreground hover:bg-accent">
-                            <Bell className="h-5 w-5" />
-                            <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-red-500"></span>
-                        </button>
-                        <div className="hidden h-8 w-px bg-border md:block"></div>
-                        <button className="flex items-center gap-3 rounded-full md:pr-4">
-                            <Image
-                                height={40}
-                                width={40}
-                                alt="User avatar"
-                                className="h-10 w-10 rounded-full object-cover border-2 border-border shadow-sm"
-                                src="https://lh3.googleusercontent.com/aida-public/AB6AXuBYzxPMbVgMlACnXlUiRFswjaJEinu0ybtQI1btrgon6W0lqHY1OZohyHhpQ1ACTaWvzV07YvW47H8lq36JM6BspBcdtluWKo7GKYBk0c0_dTyf_zzebH7tscBMqT5iYcR-dDXshkyVDY39BsIrre-1rPPROqh6ZdgEXRvF7-TYYzccIwWEDZEc9tn6y4aWlZAt0qC9wJzrdve04sb3FPlizZG7zV5Q8CLv-4G-P5reWgmGwqyHyWGAMEdLrO5hNFCm_W0XMWBLrhM"
-                            />
-                            <div className="hidden text-left md:block">
-                                <p className="text-sm font-semibold">Dr. Sarah W.</p>
-                                <p className="text-xs text-muted-foreground">Admin</p>
-                            </div>
-                            <ChevronDown className="hidden h-5 w-5 text-muted-foreground md:block" />
-                        </button>
-                    </div>
-                </header>
-
                 {/* Page Content */}
                 <div className="flex-1 overflow-y-auto bg-background p-6 lg:p-8">
                     {/* Page Header */}

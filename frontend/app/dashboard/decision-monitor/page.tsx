@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState } from "react";
-import { DashboardNavBar } from "@/app/Components/Navigation/DashboardNavBar";
 import { Button } from "@/components/ui/button";
 import {
   Download,
@@ -204,8 +203,6 @@ const DecisionMonitorPage = () => {
   });
   return (
     <div className="min-h-screen bg-background">
-      <DashboardNavBar />
-
       <main className="max-w-360 mx-auto px-6 py-8 flex flex-col gap-8">
         {/* Page Header */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">

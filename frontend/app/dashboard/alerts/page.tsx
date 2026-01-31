@@ -19,45 +19,7 @@ import Image from "next/image";
 
 const page = () => {
   return (
-    <div className="bg-background-light dark:bg-background-dark text-text-primary-light dark:text-text-primary-dark transition-colors duration-200 h-screen overflow-hidden flex flex-col">
-      <header className="bg-card-light dark:bg-card-dark border-b border-gray-200 dark:border-gray-700 h-16 flex items-center justify-between px-6 shrink-0 z-10">
-        <div className="flex items-center space-x-3">
-          <div className="w-8 h-8 rounded bg-primary flex items-center justify-center text-white font-bold text-lg">
-            A
-          </div>
-          <div>
-            <h1 className="font-bold text-lg leading-tight tracking-tight">
-              Vitality Monitor
-            </h1>
-            <p className="text-xs text-text-secondary-light dark:text-text-secondary-dark">
-              Adaptive City-Scale Hospital Triage System
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center space-x-6">
-          <div className="flex items-center space-x-2 text-sm">
-            <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-            <span className="text-text-secondary-light dark:text-text-secondary-dark font-medium">
-              System Operational
-            </span>
-          </div>
-          <div className="flex items-center space-x-3 pl-6 border-l border-gray-200 dark:border-gray-700">
-            <Image
-              width={32}
-              height={32}
-              alt="User Profile"
-              className="w-8 h-8 rounded-full border border-gray-200 dark:border-gray-600"
-              src="https://lh3.googleusercontent.com/aida-public/AB6AXuByMTB59tgpDEvah1mOxNNm8p6R6a1wANMsTDdnKypMl-x7B0n1ggwwkU_dqYHGYC5WfdOGyq_FBf_BiiwHCfCHWG5omgAGhmWYBj-YpQPFNAvrd7vLRyM1KKz7oqKcB4apTtt6n2fHIRbGRVYRr1aslkPX_0WYqIWm-qrpvZwDKxCsRFjZHKqn7eqR-V0QzKHQFUBRGEmR27L6SJZjWAR3CxuXGrjM7Y5m_RkTLi4iX3vjfsho-GOjFsp8Qlhz3qhNt8OYK4sA4UA"
-            />
-            <div className="hidden md:block text-sm">
-              <p className="font-medium">Dr. Sarah Jenning</p>
-              <p className="text-xs text-text-secondary-light dark:text-text-secondary-dark">
-                Triage Supervisor
-              </p>
-            </div>
-          </div>
-        </div>
-      </header>
+    <div className="bg-background-light dark:bg-background-dark text-text-primary-light dark:text-text-primary-dark transition-colors duration-200 h-full flex flex-col">
       <main className="flex-1 flex overflow-hidden">
         <section className="w-2/5 border-r border-gray-200 dark:border-gray-700 flex flex-col bg-gray-50 dark:bg-[#0f172a]">
           <div className="p-5 border-b border-gray-200 dark:border-gray-700 bg-card-light dark:bg-card-dark flex justify-between items-center shrink-0">

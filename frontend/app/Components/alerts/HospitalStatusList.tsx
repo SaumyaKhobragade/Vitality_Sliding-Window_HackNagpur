@@ -1,0 +1,196 @@
+import React from "react";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { User, Clock, ArrowRight } from "lucide-react";
+import Link from "next/link";
+
+const data = [
+    {
+        name: "Metro General",
+        location: "Downtown District",
+        status: "NORMAL",
+        queueSize: 12,
+        activeDoctors: 45,
+        avgWaitTime: "15m",
+        specialties: ["Trauma L1", "Stroke Center", "Pediatrics"],
+    },
+    {
+        name: "St. Mary's",
+        location: "Northside",
+        status: "BUSY",
+        queueSize: 25,
+        activeDoctors: 32,
+        avgWaitTime: "30m",
+        specialties: ["Trauma L2", "Cardiology", "Neurology"],
+    },
+    {
+        name: "City Central",
+        location: "East End",
+        status: "CRITICAL",
+        queueSize: 45,
+        activeDoctors: 28,
+        avgWaitTime: "45m",
+        specialties: ["Trauma L1", "ICU", "Pediatrics"],
+    },
+    {
+        name: "Westside Medical",
+        location: "West End",
+        status: "NORMAL",
+        queueSize: 8,
+        activeDoctors: 52,
+        avgWaitTime: "10m",
+        specialties: ["Trauma L3", "Orthopedics", "Neurology"],
+    },
+    {
+        name: "North General",
+        location: "Northside",
+        status: "BUSY",
+        queueSize: 18,
+        activeDoctors: 38,
+        avgWaitTime: "25m",
+        specialties: ["Trauma L2", "Cardiology", "Pediatrics"],
+    },
+    {
+        name: "East Medical",
+        location: "East End",
+        status: "NORMAL",
+        queueSize: 10,
+        activeDoctors: 42,
+        avgWaitTime: "12m",
+        specialties: ["Trauma L3", "Neurology", "ICU"],
+    },
+];
+
+const HospitalStatusList = () => {
+    const getStatusStyles = (status: string) => {
+        switch (status) {
+            case "NORMAL":
+                return {
+                    badge:
+                        "bg-severity-stable/10 text-severity-stable border-severity-stable/20",
+                    bar: "bg-severity-stable",
+                    icon: "bg-severity-stable/10 text-severity-stable",
+                };
+            case "BUSY":
+                return {
+                    badge:
+                        "bg-severity-urgent/10 text-severity-urgent border-severity-urgent/20",
+                    bar: "bg-severity-urgent",
+                    icon: "bg-severity-urgent/10 text-severity-urgent",
+                };
+            case "CRITICAL":
+                return {
+                    badge:
+                        "bg-severity-critical/10 text-severity-critical border-severity-critical/20",
+                    bar: "bg-severity-critical",
+                    icon: "bg-severity-critical/10 text-severity-critical",
+                };
+            default:
+                return {
+                    badge:
+                        "bg-severity-minimal/10 text-severity-minimal border-severity-minimal/20",
+                    bar: "bg-severity-minimal",
+                    icon: "bg-severity-minimal/10 text-severity-minimal",
+                };
+        }
+    };
+
+    return (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            {data.map((item, index) => {
+                const styles = getStatusStyles(item.status);
+
+                return (
+                    <Card
+                        key={index}
+                        className="bg-surface-light dark:bg-surface-dark rounded-xl border border-border-light dark:border-border-dark p-5 shadow-sm hover:shadow-md transition-all duration-200"
+                    >
+                        <div className="flex justify-between items-start mb-4">
+                            <div className="flex items-center gap-3">
+                                <div
+                                    className={`h-10 w-10 rounded-lg flex items-center justify-center font-bold text-lg ${styles.icon}`}
+                                >
+                                    {item.name.substring(0, 2).toUpperCase()}
+                                </div>
+                                <div>
+                                    <h4 className="font-bold text-gray-900 dark:text-white">
+                                        {item.name}
+                                    </h4>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                                        {item.location}
+                                    </p>
+                                </div>
+                            </div>
+                            <span
+                                className={`px-2 py-1 rounded-md text-xs font-bold border ${styles.badge}`}
+                            >
+                                {item.status}
+                            </span>
+                        </div>
+                        <div className="flex flex-wrap gap-2 mb-4">
+                            {item.specialties.map((specialty, idx) => (
+                                <span
+                                    key={idx}
+                                    className="px-2 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-[10px] rounded border border-gray-200 dark:border-gray-600"
+                                >
+                                    {specialty}
+                                </span>
+                            ))}
+                        </div>
+                        <div className="space-y-4">
+                            <div>
+                                <div className="flex justify-between text-sm mb-1">
+                                    <span className="text-gray-500 dark:text-gray-400">
+                                        Queue Size
+                                    </span>
+                                    <span className="font-semibold text-gray-900 dark:text-white">
+                                        {item.queueSize}
+                                    </span>
+                                </div>
+                                <div className="h-2 w-full bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+                                    <div
+                                        className={`h-full w-1/4 rounded-full ${styles.bar}`}
+                                        style={{
+                                            width: `${Math.min((item.queueSize / 100) * 100, 100)}%`,
+                                        }}
+                                    ></div>
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4 pt-2 border-t border-gray-100 dark:border-gray-700">
+                                <div>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-0.5">
+                                        Active Doctors
+                                    </p>
+                                    <p className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-1">
+                                        <User className="h-4 w-4 text-gray-400" />
+                                        {item.activeDoctors}
+                                    </p>
+                                </div>
+                                <div>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-0.5">
+                                        Avg Wait Time
+                                    </p>
+                                    <p className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-1">
+                                        <Clock className="h-4 w-4 text-gray-400" />
+                                        {item.avgWaitTime}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700 flex justify-end">
+                            <Link
+                                className="text-sm text-primary font-medium hover:text-blue-700 dark:hover:text-blue-400 flex items-center gap-1"
+                                href="#"
+                            >
+                                Details
+                                <ArrowRight className="h-4 w-4" />
+                            </Link>
+                        </div>
+                    </Card>
+                );
+            })}
+        </div>
+    );
+};
+
+export default HospitalStatusList;

@@ -1,4 +1,4 @@
-# Adaptive City-Scale Hospital Triage System (ACHTS)
+# Adaptive City-Scale Hospital Triage System (Vitality)
 
 ## Product Requirements Document (PRD)
 
@@ -10,7 +10,7 @@
 
 ## 1. Executive Summary
 
-The **Adaptive City-Scale Hospital Triage System (ACHTS)** is a real-time, distributed, and ethically grounded decision-support platform designed to manage **patient prioritization, hospital load balancing, and emergency surge handling across multiple hospitals within a city**.
+The **Adaptive City-Scale Hospital Triage System (Vitality)** is a real-time, distributed, and ethically grounded decision-support platform designed to manage **patient prioritization, hospital load balancing, and emergency surge handling across multiple hospitals within a city**.
 
 The system extends traditional single-hospital triage by introducing:
 - **Multi-hospital coordination**
@@ -19,7 +19,7 @@ The system extends traditional single-hospital triage by introducing:
 - **Explainable, policy-driven scheduling**
 - **Graceful degradation under extreme stress**
 
-ACHTS is **not a medical decision-maker**. It does **not diagnose, prescribe, or override clinical judgment**. Instead, it provides **operational intelligence** to assist hospital staff and administrators in making faster, fairer, and more transparent decisions.
+Vitality is **not a medical decision-maker**. It does **not diagnose, prescribe, or override clinical judgment**. Instead, it provides **operational intelligence** to assist hospital staff and administrators in making faster, fairer, and more transparent decisions.
 
 ---
 
@@ -45,7 +45,7 @@ Modern urban healthcare systems face systemic challenges that cannot be solved a
 5. **Lack of System-Wide Visibility**  
    Hospitals operate in silos with no real-time view of city-wide stress.
 
-**ACHTS addresses these issues by treating the city as a coordinated healthcare system rather than isolated facilities.**
+**Vitality addresses these issues by treating the city as a coordinated healthcare system rather than isolated facilities.**
 
 ---
 
@@ -601,7 +601,7 @@ class SchedulingDecision {
 
 ## 18. Summary
 
-ACHTS transforms hospital triage from a **local, reactive process** into a **city-scale, adaptive, ethical, and explainable system**. By combining concurrency-safe scheduling, behavioral distress awareness, and multi-hospital coordination, the platform demonstrates how modern software systems can meaningfully support real-world healthcare operations without replacing human judgment.
+Vitality transforms hospital triage from a **local, reactive process** into a **city-scale, adaptive, ethical, and explainable system**. By combining concurrency-safe scheduling, behavioral distress awareness, and multi-hospital coordination, the platform demonstrates how modern software systems can meaningfully support real-world healthcare operations without replacing human judgment.
 
 ---
 

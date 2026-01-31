@@ -286,7 +286,7 @@ const QueueDetailsPage = () => {
                         <button className="text-muted-foreground hover:text-foreground">
                             <Activity className="h-6 w-6" />
                         </button>
-                        <span className="text-lg font-bold">ACHTS</span>
+                        <span className="text-lg font-bold">Vitality</span>
                     </div>
                     <div className="flex flex-1 items-center gap-4 lg:gap-8">
                         <div className="hidden w-full max-w-md lg:block">

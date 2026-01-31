@@ -1,4 +1,4 @@
-# Load Test Script for ACHTS - Force Redirection
+# Load Test Script for Vitality - Force Redirection
 $BaseUrl = "http://localhost:9090/api/simulation"
 
 Write-Host "1. Initializing City..." -ForegroundColor Cyan

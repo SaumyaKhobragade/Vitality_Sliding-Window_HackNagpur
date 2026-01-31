@@ -8,7 +8,7 @@
 - [x] Task: Conductor - User Manual Verification 'API and Types Foundation' (Protocol in workflow.md)
 
 ## Phase 2: WebSocket Infrastructure
-- [ ] Task: Implement WebSocket Service
+- [x] Task: Implement WebSocket Service cc03b10
     - [ ] Install \stompjs\ and \sockjs-client\ dependencies.
     - [ ] Create \lib/socket-service.ts\ to encapsulate STOMP connection, subscription, and reconnection logic.
     - [ ] Write unit tests for \socket-service.ts\ mocking the underlying WebSocket connection.

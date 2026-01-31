@@ -62,7 +62,6 @@ Thumbs.db
 !**/README.md
 
 # Video files (large, should not be in git)
-*.mp4
 *.avi
 *.mov
 *.mkv
@@ -73,5 +72,3 @@ Thumbs.db
 *.temp
 temp/
 tmp/
-
-SampleVideo/

@@ -12,7 +12,7 @@ from models.events import DistressEvent, AnalysisResponse
 from core.frame_sampler import sample_frames, get_video_info
 from core.blob_detector import BlobDetector
 from core.tracker import BlobTracker
-from core.distress_analyzer import DistressAnalyzer
+from core.distress_analyzer import DistressAnalyzerPhase2  # Use Phase 2 for all signals
 
 
 router = APIRouter()
@@ -37,7 +37,7 @@ def process_video(video_path: str) -> AnalysisResponse:
     # Initialize components
     detector = BlobDetector()
     tracker = BlobTracker()
-    analyzer = DistressAnalyzer()
+    analyzer = DistressAnalyzerPhase2()  # Phase 2 includes all signal types
     
     all_events: List[DistressEvent] = []
     frames_analyzed = 0

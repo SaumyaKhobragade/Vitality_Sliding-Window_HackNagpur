@@ -88,40 +88,46 @@ class DistressAnalyzer:
         
         Criteria:
         - Person remains nearly stationary
-        - Duration exceeds threshold (default 15 seconds)
+        - Duration exceeds threshold
         """
-        if blob.frames_tracked < config.IMMOBILITY_DURATION_SEC:
+        # Need at least a few frames to analyze
+        min_frames = max(2, int(config.IMMOBILITY_DURATION_SEC * config.SAMPLE_FPS))
+        if blob.frames_tracked < min_frames:
             return None
         
-        # Check idle time
-        if blob.idle_time < config.IMMOBILITY_DURATION_SEC:
-            return None
-        
-        # Calculate displacement over the immobility window
-        displacement = blob.get_centroid_displacement(config.IMMOBILITY_DURATION_SEC)
-        if displacement is None:
-            return None
-        
-        # Check if displacement is below threshold
-        if displacement < config.IMMOBILITY_THRESHOLD_PX * config.IMMOBILITY_DURATION_SEC:
-            # Calculate confidence factors
-            raw_confidence = 0.8  # Base confidence for meeting criteria
+        # Check idle time (person not moving significantly)
+        if blob.idle_time >= config.IMMOBILITY_DURATION_SEC:
+            # Calculate displacement over the observation window
+            displacement = blob.get_centroid_displacement(config.IMMOBILITY_DURATION_SEC)
             
-            # Duration factor: higher confidence for longer immobility
-            duration_ratio = blob.idle_time / config.IMMOBILITY_DURATION_SEC
-            duration_factor = min(1.2, 0.8 + 0.2 * (duration_ratio - 1))
+            # Even if displacement is None, idle_time alone is enough
+            if displacement is None:
+                displacement = 0
             
-            # Consistency factor: based on how consistently immobile
-            consistency_factor = 1.0 - (displacement / (config.IMMOBILITY_THRESHOLD_PX * config.IMMOBILITY_DURATION_SEC))
-            consistency_factor = max(0.5, min(1.0, consistency_factor))
-            
-            return DistressSignal(
-                signal_type="PROLONGED_IMMOBILITY",
-                blob_id=blob.blob_id,
-                raw_confidence=raw_confidence,
-                duration_factor=duration_factor,
-                consistency_factor=consistency_factor
-            )
+            # Check if displacement is below threshold
+            max_allowed = config.IMMOBILITY_THRESHOLD_PX * config.IMMOBILITY_DURATION_SEC
+            if displacement < max_allowed:
+                # Calculate confidence factors
+                raw_confidence = 0.85  # Higher base confidence
+                
+                # Duration factor: higher confidence for longer immobility
+                duration_ratio = blob.idle_time / config.IMMOBILITY_DURATION_SEC
+                duration_factor = min(1.3, 0.9 + 0.1 * duration_ratio)
+                
+                # Consistency factor
+                if max_allowed > 0:
+                    consistency_factor = 1.0 - (displacement / max_allowed)
+                else:
+                    consistency_factor = 1.0
+                consistency_factor = max(0.6, min(1.0, consistency_factor))
+                
+                return DistressSignal(
+                    signal_type="PROLONGED_IMMOBILITY",
+                    blob_id=blob.blob_id,
+                    raw_confidence=raw_confidence,
+                    duration_factor=duration_factor,
+                    consistency_factor=consistency_factor
+                )
         
         return None
     
@@ -130,44 +136,76 @@ class DistressAnalyzer:
         Check for sudden collapse signal.
         
         Criteria:
-        - Large negative Y-axis displacement (downward in image) within short time
-        - Followed by period of immobility
+        - Large downward Y-axis displacement within short time
+        - Followed by period of immobility OR significant height change
         """
-        if blob.frames_tracked < config.COLLAPSE_TIME_WINDOW_SEC + config.COLLAPSE_POST_IMMOBILITY_SEC:
+        min_frames = max(2, int((config.COLLAPSE_TIME_WINDOW_SEC + config.COLLAPSE_POST_IMMOBILITY_SEC) * config.SAMPLE_FPS))
+        if blob.frames_tracked < min_frames:
             return None
         
         # Check for recent vertical drop
         max_drop = blob.get_max_vertical_drop(config.COLLAPSE_TIME_WINDOW_SEC)
-        if max_drop is None or max_drop < config.COLLAPSE_VERTICAL_DROP_PX:
-            return None
+        if max_drop is None:
+            max_drop = 0
         
-        # Check for post-collapse immobility
-        recent_displacement = blob.get_centroid_displacement(config.COLLAPSE_POST_IMMOBILITY_SEC)
-        if recent_displacement is None:
-            return None
+        # Also check for significant height change (person going from standing to lying)
+        height_change = self._check_height_change(blob)
         
-        # Immobile after drop?
-        if recent_displacement < config.IMMOBILITY_THRESHOLD_PX * config.COLLAPSE_POST_IMMOBILITY_SEC:
-            # Calculate confidence
-            raw_confidence = 0.7
+        # Collapse detected if large drop OR significant height reduction
+        collapse_detected = (max_drop >= config.COLLAPSE_VERTICAL_DROP_PX) or height_change
+        
+        if collapse_detected:
+            # Check for post-collapse immobility (less strict)
+            recent_displacement = blob.get_centroid_displacement(config.COLLAPSE_POST_IMMOBILITY_SEC)
+            if recent_displacement is None:
+                recent_displacement = 0
             
-            # Higher confidence for larger drops
-            drop_ratio = max_drop / config.COLLAPSE_VERTICAL_DROP_PX
-            duration_factor = min(1.3, 0.8 + 0.2 * drop_ratio)
+            max_post_movement = config.IMMOBILITY_THRESHOLD_PX * config.COLLAPSE_POST_IMMOBILITY_SEC * 2  # More lenient
             
-            # Higher confidence if very still after
-            stillness_ratio = 1.0 - (recent_displacement / (config.IMMOBILITY_THRESHOLD_PX * config.COLLAPSE_POST_IMMOBILITY_SEC))
-            consistency_factor = max(0.6, min(1.0, stillness_ratio))
-            
-            return DistressSignal(
-                signal_type="SUDDEN_COLLAPSE",
-                blob_id=blob.blob_id,
-                raw_confidence=raw_confidence,
-                duration_factor=duration_factor,
-                consistency_factor=consistency_factor
-            )
+            if recent_displacement < max_post_movement:
+                # Calculate confidence
+                raw_confidence = 0.8
+                
+                # Higher confidence for larger drops
+                if config.COLLAPSE_VERTICAL_DROP_PX > 0:
+                    drop_ratio = max(max_drop / config.COLLAPSE_VERTICAL_DROP_PX, 1.0)
+                else:
+                    drop_ratio = 1.0
+                duration_factor = min(1.4, 0.9 + 0.15 * drop_ratio)
+                
+                # Consistency based on stillness after
+                if max_post_movement > 0:
+                    stillness_ratio = 1.0 - (recent_displacement / max_post_movement)
+                else:
+                    stillness_ratio = 1.0
+                consistency_factor = max(0.6, min(1.0, stillness_ratio))
+                
+                return DistressSignal(
+                    signal_type="SUDDEN_COLLAPSE",
+                    blob_id=blob.blob_id,
+                    raw_confidence=raw_confidence,
+                    duration_factor=duration_factor,
+                    consistency_factor=consistency_factor
+                )
         
         return None
+    
+    def _check_height_change(self, blob: TrackedBlob) -> bool:
+        """Check if blob height decreased significantly (standing to lying)."""
+        if len(blob.bbox_height_history) < 3:
+            return False
+        
+        heights = list(blob.bbox_height_history)
+        if len(heights) < 2:
+            return False
+        
+        initial_height = max(heights[:len(heights)//2]) if heights[:len(heights)//2] else heights[0]
+        final_height = min(heights[len(heights)//2:]) if heights[len(heights)//2:] else heights[-1]
+        
+        # Significant height reduction (person collapsed/lying down)
+        if initial_height > 0 and final_height < initial_height * 0.6:
+            return True
+        return False
     
     def _create_event(self, signal: DistressSignal, timestamp: float) -> DistressEvent:
         """Create a DistressEvent from a signal."""
@@ -186,7 +224,6 @@ class DistressAnalyzer:
         self.emitted_events.clear()
 
 
-# Phase 2 methods (to be implemented if time allows)
 class DistressAnalyzerPhase2(DistressAnalyzer):
     """Extended analyzer with Phase 2 signals."""
     
@@ -197,6 +234,9 @@ class DistressAnalyzerPhase2(DistressAnalyzer):
         for blob_id, blob in tracked_blobs.items():
             if not blob.is_active:
                 continue
+            
+            if blob_id not in self.emitted_events:
+                self.emitted_events[blob_id] = set()
             
             # Phase 2 signals
             signals = [
@@ -210,25 +250,29 @@ class DistressAnalyzerPhase2(DistressAnalyzer):
                         event = self._create_event(signal, timestamp)
                         if event.confidence >= config.CONFIDENCE_LOG_ONLY:
                             events.append(event)
-                            if blob_id not in self.emitted_events:
-                                self.emitted_events[blob_id] = set()
                             self.emitted_events[blob_id].add(signal.signal_type)
         
         # Check crowd formation (requires all blobs)
         crowd_signal = self._check_crowd_formation(tracked_blobs)
         if crowd_signal:
-            event = self._create_event(crowd_signal, timestamp)
-            if event.confidence >= config.CONFIDENCE_LOG_ONLY:
-                events.append(event)
+            # Use a special key for crowd events
+            if "CROWD_FORMATION" not in self.emitted_events.get(-1, set()):
+                event = self._create_event(crowd_signal, timestamp)
+                if event.confidence >= config.CONFIDENCE_LOG_ONLY:
+                    events.append(event)
+                    if -1 not in self.emitted_events:
+                        self.emitted_events[-1] = set()
+                    self.emitted_events[-1].add("CROWD_FORMATION")
         
         return events
     
     def _check_erratic_pacing(self, blob: TrackedBlob) -> Optional[DistressSignal]:
         """Check for erratic pacing behavior."""
-        if blob.frames_tracked < config.TRACKING_WINDOW_SEC // 2:
+        min_frames = max(3, config.TRACKING_WINDOW_SEC // 2)
+        if blob.frames_tracked < min_frames:
             return None
         
-        velocity = blob.get_recent_velocity(5)
+        velocity = blob.get_recent_velocity(3)  # Fewer samples needed
         if velocity is None:
             return None
         
@@ -238,7 +282,7 @@ class DistressAnalyzerPhase2(DistressAnalyzer):
             return None
         
         # Count direction changes
-        if len(blob.velocity_history) < config.PACING_DIRECTION_CHANGES + 1:
+        if len(blob.velocity_history) < config.PACING_DIRECTION_CHANGES:
             return None
         
         velocities = list(blob.velocity_history)
@@ -253,8 +297,8 @@ class DistressAnalyzerPhase2(DistressAnalyzer):
             return DistressSignal(
                 signal_type="ERRATIC_PACING",
                 blob_id=blob.blob_id,
-                raw_confidence=0.6,
-                duration_factor=min(1.2, 0.8 + 0.1 * direction_changes),
+                raw_confidence=0.7,
+                duration_factor=min(1.3, 0.9 + 0.1 * direction_changes),
                 consistency_factor=min(1.0, speed / config.PACING_VELOCITY_THRESHOLD)
             )
         
@@ -284,9 +328,9 @@ class DistressAnalyzerPhase2(DistressAnalyzer):
             return DistressSignal(
                 signal_type="REPEATED_BENDING",
                 blob_id=blob.blob_id,
-                raw_confidence=0.65,
-                duration_factor=min(1.2, 0.8 + 0.1 * oscillations),
-                consistency_factor=0.9
+                raw_confidence=0.75,
+                duration_factor=min(1.3, 0.9 + 0.1 * oscillations),
+                consistency_factor=0.95
             )
         
         return None
@@ -299,17 +343,13 @@ class DistressAnalyzerPhase2(DistressAnalyzer):
         if len(active_blobs) < config.CROWD_MIN_PEOPLE:
             return None
         
-        # Find stationary blobs (potential center of crowd)
-        for blob in active_blobs:
-            if blob.idle_time < config.CROWD_DURATION_SEC:
-                continue
-            
-            # Count blobs within radius
+        # Check if multiple blobs are close together
+        for i, blob in enumerate(active_blobs):
             center = blob.last_centroid
             nearby_count = 0
             
-            for other in active_blobs:
-                if other.blob_id == blob.blob_id:
+            for j, other in enumerate(active_blobs):
+                if i == j:
                     continue
                 dist = np.sqrt(
                     (other.last_centroid[0] - center[0])**2 +
@@ -322,9 +362,9 @@ class DistressAnalyzerPhase2(DistressAnalyzer):
                 return DistressSignal(
                     signal_type="CROWD_FORMATION",
                     blob_id=blob.blob_id,
-                    raw_confidence=0.7,
+                    raw_confidence=0.75,
                     duration_factor=1.0,
-                    consistency_factor=min(1.0, nearby_count / config.CROWD_MIN_PEOPLE)
+                    consistency_factor=min(1.0, (nearby_count + 1) / config.CROWD_MIN_PEOPLE)
                 )
         
         return None

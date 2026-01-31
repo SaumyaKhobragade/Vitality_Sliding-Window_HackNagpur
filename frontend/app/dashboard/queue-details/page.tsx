@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
     Building2,
     TrendingUp,
@@ -12,18 +13,31 @@ import {
     PersonStanding,
     Heart,
     Stethoscope,
+    Zap,
+    UserX,
+    FileText,
+    Navigation,
 } from "lucide-react";
 import { ColumnDef } from "@tanstack/react-table";
 import { DataTable } from "@/app/Components/Common/DataTable";
 import { SearchBar } from "@/app/Components/Common/SearchBar";
 import Image from "next/image";
 import { Patient, Treatment, StatCard } from "@/lib/types";
-
+import { PatientContextMenu } from "@/app/Components/dashboard/PatientContextMenu";
+import { ConfirmationDialog } from "@/app/Components/dashboard/ConfirmationDialog";
+import { DataTooltip } from "@/app/Components/dashboard/DataTooltip";
+import { SuccessToast } from "@/app/Components/dashboard/SuccessToast";
 
 // Hardcoded data
 const patientsData: Patient[] = [
     {
         id: "#8X29-A1",
+        baseSeverity: 9,
+        arrivalTime: Date.now() - 72 * 60000,
+        targetHospitalId: "Hosp-A",
+        distressScore: 85,
+        treating: false,
+        dynamicPriority: 98.5,
         severity: 9,
         waitTime: "72 min",
         status: "Nearing Threshold",
@@ -31,6 +45,12 @@ const patientsData: Patient[] = [
     },
     {
         id: "#9Y33-B2",
+        baseSeverity: 7,
+        arrivalTime: Date.now() - 45 * 60000,
+        targetHospitalId: "Hosp-A",
+        distressScore: 70,
+        treating: false,
+        dynamicPriority: 82.1,
         severity: 7,
         waitTime: "45 min",
         status: "Stable",
@@ -38,17 +58,16 @@ const patientsData: Patient[] = [
     },
     {
         id: "#3K11-C9",
+        baseSeverity: 8,
+        arrivalTime: Date.now() - 38 * 60000,
+        targetHospitalId: "Hosp-B",
+        distressScore: 65,
+        treating: false,
+        dynamicPriority: 21.2,
         severity: 8,
         waitTime: "38 min",
         status: "Stable",
-        priorityScore: 79.4,
-    },
-    {
-        id: "#1M55-D4",
-        severity: 3,
-        waitTime: "12 min",
-        status: "Low Risk",
-        priorityScore: 45.0,
+        priorityScore: 21.2,
     },
 ];
 
@@ -127,78 +146,146 @@ const getIconBgColor = (color: string) => {
     );
 };
 
-// Table columns
-const patientColumns: ColumnDef<Patient>[] = [
-    {
-        accessorKey: "id",
-        header: "Patient ID",
-        cell: ({ row }) => (
-            <span className="font-mono font-medium">{row.getValue("id")}</span>
-        ),
-    },
-    {
-        accessorKey: "severity",
-        header: "Severity (1-10)",
-        cell: ({ row }) => {
-            const severity = row.getValue("severity") as number;
-            return (
-                <span
-                    className={`inline-flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold ${getSeverityColor(severity)}`}
-                >
-                    {severity}
-                </span>
-            );
-        },
-    },
-    {
-        accessorKey: "waitTime",
-        header: "Wait Time",
-        cell: ({ row }) => {
-            const waitTime = row.getValue("waitTime") as string;
-            const isLong = waitTime.includes("72");
-            return (
-                <span
-                    className={`font-medium ${isLong ? "text-red-600 dark:text-red-400" : ""}`}
-                >
-                    {waitTime}
-                </span>
-            );
-        },
-    },
-    {
-        accessorKey: "status",
-        header: "Status",
-        cell: ({ row }) => {
-            const status = row.getValue("status") as string;
-            return (
-                <span
-                    className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getStatusColor(status)}`}
-                >
-                    {status}
-                </span>
-            );
-        },
-    },
-    {
-        accessorKey: "priorityScore",
-        header: "Priority Score",
-        cell: ({ row }) => (
-            <span className="font-bold text-right block">
-                {row.getValue("priorityScore")}
-            </span>
-        ),
-    },
-    {
-        id: "actions",
-        cell: () => (
-            <button className="text-primary hover:text-primary/80 font-medium text-xs">
-                Assign
-            </button>
-        ),
-    },
-];
-
 const QueueDetailsPage = () => {
+    // State for dialogs and toasts
+    const [confirmDialog, setConfirmDialog] = useState<{
+        open: boolean;
+        action: string;
+        patientId: string;
+    }>({ open: false, action: "", patientId: "" });
+    const [showToast, setShowToast] = useState(false);
+    const [toastMessage, setToastMessage] = useState({
+        title: "",
+        description: "",
+    });
+    const [isLoading, setIsLoading] = useState(false);
+
+    const handlePatientAction = (action: string, patientId: string) => {
+        if (action === "discharge" || action === "fast-track") {
+            setConfirmDialog({ open: true, action, patientId });
+        } else {
+            // Handle other actions directly
+            console.log(`${action} for patient ${patientId}`);
+        }
+    };
+
+    const handleConfirmAction = async () => {
+        setIsLoading(true);
+        // Simulate API call
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        setIsLoading(false);
+        setConfirmDialog({ open: false, action: "", patientId: "" });
+        setToastMessage({
+            title: "Success",
+            description: `Patient ${confirmDialog.action === "discharge" ? "discharged" : "fast-tracked"} successfully.`,
+        });
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 3000);
+    };
+
+    // Table columns
+    const patientColumns: ColumnDef<Patient>[] = [
+        {
+            accessorKey: "id",
+            header: "Patient ID",
+            cell: ({ row }) => (
+                <span className="font-mono font-medium">{row.getValue("id")}</span>
+            ),
+        },
+        {
+            accessorKey: "severity",
+            header: "Severity (1-10)",
+            cell: ({ row }) => {
+                const severity = row.getValue("severity") as number;
+                return (
+                    <span
+                        className={`inline-flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold ${getSeverityColor(severity)}`}
+                    >
+                        {severity}
+                    </span>
+                );
+            },
+        },
+        {
+            accessorKey: "waitTime",
+            header: "Wait Time",
+            cell: ({ row }) => {
+                const waitTime = row.getValue("waitTime") as string;
+                const isLong = waitTime.includes("72");
+                return (
+                    <span
+                        className={`font-medium ${isLong ? "text-red-600 dark:text-red-400" : ""}`}
+                    >
+                        {waitTime}
+                    </span>
+                );
+            },
+        },
+        {
+            accessorKey: "status",
+            header: "Status",
+            cell: ({ row }) => {
+                const status = row.getValue("status") as string;
+                return (
+                    <span
+                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getStatusColor(status)}`}
+                    >
+                        {status}
+                    </span>
+                );
+            },
+        },
+        {
+            accessorKey: "priorityScore",
+            header: "Priority Score",
+            cell: ({ row }) => (
+                <span className="font-bold text-right block">
+                    {row.getValue("priorityScore")}
+                </span>
+            ),
+        },
+        {
+            id: "actions",
+            cell: ({ row }) => (
+                <PatientContextMenu
+                    patientName={`Patient ${row.getValue("id")}`}
+                    patientInitials="PT"
+                    patientRole="Emergency"
+                    actions={[
+                        {
+                            type: "fast-track",
+                            label: "Fast-track",
+                            icon: <Zap className="h-4 w-4" />,
+                            onAction: () =>
+                                handlePatientAction("fast-track", row.getValue("id")),
+                        },
+                        {
+                            type: "redirect",
+                            label: "Redirect",
+                            icon: <Navigation className="h-4 w-4" />,
+                            onAction: () =>
+                                handlePatientAction("redirect", row.getValue("id")),
+                        },
+                        {
+                            type: "audit-log",
+                            label: "View Audit Log",
+                            icon: <FileText className="h-4 w-4" />,
+                            onAction: () => handlePatientAction("audit", row.getValue("id")),
+                        },
+                        {
+                            type: "discharge",
+                            label: "Discharge",
+                            icon: <UserX className="h-4 w-4" />,
+                            variant: "destructive",
+                            onAction: () =>
+                                handlePatientAction("discharge", row.getValue("id")),
+                        },
+                    ]}
+                />
+            ),
+        },
+    ];
+
     // Stats cards data
     const statsCards: StatCard[] = [
         {
@@ -446,6 +533,35 @@ const QueueDetailsPage = () => {
                     <div className="h-8"></div>
                 </div>
             </main>
+
+            {/* Confirmation Dialog */}
+            <ConfirmationDialog
+                open={confirmDialog.open}
+                onOpenChange={(open) => setConfirmDialog({ ...confirmDialog, open })}
+                title={`Confirm ${confirmDialog.action === "discharge" ? "Discharge" : "Fast-Track"}`}
+                description={`Are you sure you want to ${confirmDialog.action} patient ${confirmDialog.patientId}?`}
+                highlightedText={confirmDialog.patientId}
+                impactText="This action will update the patient queue immediately."
+                confirmLabel="Confirm"
+                cancelLabel="Cancel"
+                onConfirm={handleConfirmAction}
+                variant={
+                    confirmDialog.action === "discharge" ? "destructive" : "warning"
+                }
+                loading={isLoading}
+            />
+
+            {/* Success Toast */}
+            {showToast && (
+                <div className="fixed top-4 right-4 z-50">
+                    <SuccessToast
+                        title={toastMessage.title}
+                        description={toastMessage.description}
+                        variant="success"
+                        onClose={() => setShowToast(false)}
+                    />
+                </div>
+            )}
         </div>
     );
 };

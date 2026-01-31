@@ -1,6 +1,6 @@
 "use client";
 
-import { useSession, signOut } from "@/lib/auth/auth-client";
+import { createClient } from "@/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -13,29 +13,41 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { LogOut, User, Settings } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { User as SupabaseUser } from "@supabase/supabase-js";
 
 export function UserNav() {
-    const { data: session, isPending } = useSession();
     const router = useRouter();
+    const supabase = createClient();
+    const [user, setUser] = useState<SupabaseUser | null>(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const getUser = async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            setUser(user);
+            setLoading(false);
+        };
+        getUser();
+    }, [supabase]);
 
     const handleSignOut = async () => {
-        await signOut();
-        router.push("/login");
+        await supabase.auth.signOut();
+        router.push("/auth");
     };
 
-    if (isPending) {
+    if (loading) {
         return <div className="h-8 w-8 animate-pulse rounded-full bg-muted" />;
     }
 
-    if (!session?.user) {
+    if (!user) {
         return null;
     }
 
-    const user = session.user;
-    const initials = user.name
-        ? user.name
+    const initials = user.user_metadata?.full_name
+        ? user.user_metadata.full_name
             .split(" ")
-            .map((n) => n[0])
+            .map((n: string) => n[0])
             .join("")
             .toUpperCase()
         : user.email?.[0]?.toUpperCase() || "U";
@@ -46,8 +58,8 @@ export function UserNav() {
                 <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                     <Avatar className="h-8 w-8">
                         <AvatarImage
-                            src={user.image || undefined}
-                            alt={user.name || "User"}
+                            src={user.user_metadata?.avatar_url || undefined}
+                            alt={user.user_metadata?.full_name || "User"}
                         />
                         <AvatarFallback>{initials}</AvatarFallback>
                     </Avatar>
@@ -57,7 +69,7 @@ export function UserNav() {
                 <DropdownMenuLabel className="font-normal">
                     <div className="flex flex-col space-y-1">
                         <p className="text-sm font-medium leading-none">
-                            {user.name || "User"}
+                            {user.user_metadata?.full_name || "User"}
                         </p>
                         <p className="text-xs leading-none text-muted-foreground">
                             {user.email}

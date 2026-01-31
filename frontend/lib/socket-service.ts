@@ -1,16 +1,22 @@
-import { Client, IMessage, StompSubscription } from '@stomp/stompjs';
-import SockJS from 'sockjs-client';
+import { Client, IMessage, StompSubscription } from "@stomp/stompjs";
+import SockJS from "sockjs-client";
 
 export type SocketCallback = (message: any) => void;
+
+interface PendingSubscription {
+  topic: string;
+  callback: SocketCallback;
+}
 
 export class SocketService {
   private client: Client;
   private subscriptions: Map<string, StompSubscription> = new Map();
   private connected: boolean = false;
+  private pendingSubscriptions: PendingSubscription[] = [];
 
   constructor() {
     this.client = new Client({
-      webSocketFactory: () => new SockJS('http://localhost:9090/ws'),
+      webSocketFactory: () => new SockJS("/ws"),
       debug: (str) => {
         // console.log(str);
       },
@@ -21,7 +27,10 @@ export class SocketService {
 
     this.client.onConnect = () => {
       this.connected = true;
-      console.log('WebSocket Connected');
+      console.log("WebSocket Connected");
+
+      // Process pending subscriptions
+      this.processPendingSubscriptions();
     };
 
     this.client.onDisconnect = () => {
@@ -47,7 +56,16 @@ export class SocketService {
     return this.connected;
   }
 
-  subscribe(topic: string, callback: SocketCallback): void {
+  private processPendingSubscriptions(): void {
+    while (this.pendingSubscriptions.length > 0) {
+      const pending = this.pendingSubscriptions.shift();
+      if (pending) {
+        this.subscribeNow(pending.topic, pending.callback);
+      }
+    }
+  }
+
+  private subscribeNow(topic: string, callback: SocketCallback): void {
     if (this.subscriptions.has(topic)) {
       this.subscriptions.get(topic)?.unsubscribe();
     }
@@ -57,11 +75,22 @@ export class SocketService {
         const payload = JSON.parse(message.body);
         callback(payload);
       } catch (e) {
-        console.error('Error parsing WebSocket message', e);
+        console.error("Error parsing WebSocket message", e);
       }
     });
 
     this.subscriptions.set(topic, subscription);
+  }
+
+  subscribe(topic: string, callback: SocketCallback): void {
+    if (!this.connected) {
+      // Queue the subscription to be processed when connected
+      this.pendingSubscriptions.push({ topic, callback });
+      console.log(`Queued subscription for ${topic} (not connected yet)`);
+      return;
+    }
+
+    this.subscribeNow(topic, callback);
   }
 
   unsubscribe(topic: string): void {

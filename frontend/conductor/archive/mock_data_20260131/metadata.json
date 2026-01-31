@@ -1,0 +1,8 @@
+﻿{
+    "description":  "Implement structured mock data and integrate it into the Patient Flow Chart component to replace hardcoded values.",
+    "track_id":  "mock_data_20260131",
+    "type":  "feature",
+    "created_at":  "2026-01-31T22.34.58Z",
+    "status":  "new",
+    "updated_at":  "2026-01-31T22.34.58Z"
+}

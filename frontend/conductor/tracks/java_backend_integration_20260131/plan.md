@@ -7,7 +7,7 @@
     - [ ] Write unit tests for \pi-client.ts\ to ensure correct request formatting and error handling.
 - [x] Task: Conductor - User Manual Verification 'API and Types Foundation' (Protocol in workflow.md)
 
-## Phase 2: WebSocket Infrastructure
+## Phase 2: WebSocket Infrastructure [checkpoint: f723b46]
 - [x] Task: Implement WebSocket Service cc03b10
     - [ ] Install \stompjs\ and \sockjs-client\ dependencies.
     - [ ] Create \lib/socket-service.ts\ to encapsulate STOMP connection, subscription, and reconnection logic.
@@ -16,7 +16,7 @@
     - [ ] Implement \SimulationProvider\ in \pp/Components/Context/SimulationContext.tsx\ to manage global simulation state.
     - [ ] Integrate \SocketService\ within the provider to update state on incoming messages.
     - [ ] Write unit tests for \SimulationProvider\ verifying state updates from socket events.
-- [ ] Task: Conductor - User Manual Verification 'WebSocket Infrastructure' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'WebSocket Infrastructure' (Protocol in workflow.md)
 
 ## Phase 3: UI Integration and Component Refactoring
 - [ ] Task: Integrate Real Data into Dashboard Components

@@ -1,5 +1,8 @@
+"use client";
+
 import React from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
     Building2,
     LayoutDashboard,
@@ -8,8 +11,9 @@ import {
     Signpost,
     BellRing,
     FileText,
-    History,
     CircleHelp,
+    Users,
+    Play,
 } from "lucide-react";
 import {
     Sidebar as ShadcnSidebar,
@@ -26,6 +30,8 @@ import {
 } from "@/components/ui/sidebar";
 
 const Sidebar = () => {
+    const pathname = usePathname();
+
     return (
         <ShadcnSidebar collapsible="icon">
             <SidebarHeader>
@@ -61,7 +67,11 @@ const Sidebar = () => {
                     <SidebarGroupContent>
                         <SidebarMenu>
                             <SidebarMenuItem>
-                                <SidebarMenuButton asChild isActive tooltip="City Dashboard">
+                                <SidebarMenuButton
+                                    asChild
+                                    isActive={pathname === "/dashboard"}
+                                    tooltip="City Dashboard"
+                                >
                                     <Link href="/dashboard">
                                         <LayoutDashboard />
                                         <span>City Dashboard</span>
@@ -101,7 +111,11 @@ const Sidebar = () => {
                     <SidebarGroupContent>
                         <SidebarMenu>
                             <SidebarMenuItem>
-                                <SidebarMenuButton asChild tooltip="Redirections">
+                                <SidebarMenuButton
+                                    asChild
+                                    isActive={pathname.startsWith("/dashboard/decision-monitor")}
+                                    tooltip="Redirections"
+                                >
                                     <Link href="/dashboard/decision-monitor">
                                         <Signpost />
                                         <span>Redirections</span>
@@ -109,13 +123,41 @@ const Sidebar = () => {
                                 </SidebarMenuButton>
                             </SidebarMenuItem>
                             <SidebarMenuItem>
-                                <SidebarMenuButton asChild tooltip="Distress Alerts">
+                                <SidebarMenuButton
+                                    asChild
+                                    isActive={pathname.startsWith("/dashboard/alerts")}
+                                    tooltip="Distress Alerts"
+                                >
                                     <Link href="/dashboard/alerts">
                                         <BellRing />
                                         <span>Distress Alerts</span>
                                         <span className="ml-auto bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-300 py-0.5 px-2 rounded-full text-xs font-bold group-data-[collapsible=icon]:hidden">
                                             3
                                         </span>
+                                    </Link>
+                                </SidebarMenuButton>
+                            </SidebarMenuItem>
+                            <SidebarMenuItem>
+                                <SidebarMenuButton
+                                    asChild
+                                    isActive={pathname.startsWith("/dashboard/queue-details")}
+                                    tooltip="Queue Details"
+                                >
+                                    <Link href="/dashboard/queue-details">
+                                        <Users />
+                                        <span>Queue Details</span>
+                                    </Link>
+                                </SidebarMenuButton>
+                            </SidebarMenuItem>
+                            <SidebarMenuItem>
+                                <SidebarMenuButton
+                                    asChild
+                                    isActive={pathname.startsWith("/dashboard/simulation")}
+                                    tooltip="Simulation"
+                                >
+                                    <Link href="/dashboard/simulation">
+                                        <Play />
+                                        <span>Simulation</span>
                                     </Link>
                                 </SidebarMenuButton>
                             </SidebarMenuItem>
@@ -128,18 +170,14 @@ const Sidebar = () => {
                     <SidebarGroupContent>
                         <SidebarMenu>
                             <SidebarMenuItem>
-                                <SidebarMenuButton asChild tooltip="Policies">
+                                <SidebarMenuButton
+                                    asChild
+                                    isActive={pathname.startsWith("/dashboard/policy-config")}
+                                    tooltip="Policies"
+                                >
                                     <Link href="/dashboard/policy-config">
                                         <FileText />
                                         <span>Policies</span>
-                                    </Link>
-                                </SidebarMenuButton>
-                            </SidebarMenuItem>
-                            <SidebarMenuItem>
-                                <SidebarMenuButton asChild tooltip="Audit Log">
-                                    <Link href="/dashboard/audit">
-                                        <History />
-                                        <span>Audit Log</span>
                                     </Link>
                                 </SidebarMenuButton>
                             </SidebarMenuItem>

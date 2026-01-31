@@ -1,4 +1,4 @@
-# Massive Load Test Script for ACHTS - City Scale Simulation
+# Massive Load Test Script for Vitality - City Scale Simulation
 $BaseUrl = "http://localhost:9090/api/simulation"
 $Hospitals = @("H1", "H2", "H3")
 $TotalPatients = 100

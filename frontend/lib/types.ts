@@ -42,3 +42,10 @@ export interface RedirectionDecision {
   policyApplied?: string;
   constraints?: string[];
 }
+
+export interface LogEntry {
+  id: string;
+  timestamp: string;
+  level: "INFO" | "WARN" | "CRITICAL" | "SUCCESS" | "SYSTEM";
+  message: string;
+}

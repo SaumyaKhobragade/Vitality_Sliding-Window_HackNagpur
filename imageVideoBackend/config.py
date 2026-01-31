@@ -1,55 +1,135 @@
 """
-Configuration settings for Video-Based Behavioral Distress Detection.
-All thresholds are tunable based on camera setup and environment.
+Configuration settings for Video-Based Behavioral Distress Detection (VBDD).
+
+This system supports two modes:
+- DEMO: Optimized for short, stitched synthetic video clips (6–8 sec each)
+- PRODUCTION: Conservative thresholds suitable for real CCTV environments
+
+All detection logic remains identical across modes.
+Only observation windows and sampling rates differ.
 """
 
-# Frame Sampling
-SAMPLE_FPS = 1  # Frames per second to sample
+# =========================
+# SYSTEM MODE
+# =========================
+MODE = "DEMO"  # Options: "DEMO" or "PRODUCTION"
 
-# Blob Detection
-MIN_BLOB_AREA = 500  # Minimum pixel area to consider a blob as a person
-MAX_BLOB_AREA = 50000  # Maximum pixel area (to filter out large noise)
-ASPECT_RATIO_MIN = 0.3  # Minimum height/width ratio for human-like blobs
-ASPECT_RATIO_MAX = 4.0  # Maximum height/width ratio
 
-# Background Subtractor Settings
-BG_HISTORY = 500  # Number of frames for background model
-BG_VAR_THRESHOLD = 16  # Variance threshold for background subtraction
-BG_DETECT_SHADOWS = True  # Detect and mark shadows
+# =========================
+# FRAME SAMPLING
+# =========================
+if MODE == "DEMO":
+    SAMPLE_FPS = 4   # Higher temporal resolution for short clips (more frames = better detection)
+else:
+    SAMPLE_FPS = 1   # Safer, lower load for real CCTV
 
-# Morphological Operations
-MORPH_KERNEL_SIZE = 5  # Size of kernel for noise removal
 
-# Tracking
-TRACKING_WINDOW_SEC = 20  # Rolling window duration in seconds
-CENTROID_MATCH_DISTANCE = 50  # Max distance to match blobs across frames
+# =========================
+# BLOB DETECTION
+# =========================
+MIN_BLOB_AREA = 300      # Lower threshold to catch smaller figures
+MAX_BLOB_AREA = 80000    # Higher to catch close-up figures
 
-# Distress Detection - Prolonged Immobility
-IMMOBILITY_THRESHOLD_PX = 20  # Max displacement to consider immobile (pixels)
-IMMOBILITY_DURATION_SEC = 15  # Time before flagging as prolonged immobility
+ASPECT_RATIO_MIN = 0.2   # More permissive
+ASPECT_RATIO_MAX = 5.0   # More permissive
 
-# Distress Detection - Sudden Collapse
-COLLAPSE_VERTICAL_DROP_PX = 100  # Y-axis drop to detect collapse
-COLLAPSE_TIME_WINDOW_SEC = 2  # Time window for collapse detection
-COLLAPSE_POST_IMMOBILITY_SEC = 3  # Immobility duration after collapse
 
-# Distress Detection - Erratic Pacing (Phase 2)
-PACING_VELOCITY_THRESHOLD = 30  # Pixels per second
-PACING_DIRECTION_CHANGES = 3  # Minimum direction changes in window
+# =========================
+# BACKGROUND SUBTRACTOR
+# =========================
+if MODE == "DEMO":
+    BG_HISTORY = 100     # Shorter history for quick adaptation
+else:
+    BG_HISTORY = 500
+    
+BG_VAR_THRESHOLD = 16
+BG_DETECT_SHADOWS = True
 
-# Distress Detection - Repeated Bending (Phase 2)
-BENDING_OSCILLATION_MIN = 3  # Minimum oscillations to detect
-BENDING_AMPLITUDE_PX = 30  # Minimum vertical movement amplitude
 
-# Distress Detection - Crowd Formation (Phase 2)
-CROWD_RADIUS_PX = 100  # Radius to check for crowd formation
-CROWD_MIN_PEOPLE = 3  # Minimum people for crowd detection
-CROWD_DURATION_SEC = 10  # Sustained duration for crowd alert
+# =========================
+# MORPHOLOGICAL OPERATIONS
+# =========================
+MORPH_KERNEL_SIZE = 3    # Smaller kernel preserves more detail
 
-# Confidence Thresholds
-CONFIDENCE_LOG_ONLY = 0.5  # Below this: log only
-CONFIDENCE_SOFT_ALERT = 0.7  # Above this but below next: soft alert
-CONFIDENCE_REQUIRES_CONFIRMATION = 0.7  # Above this: requires staff confirmation
 
-# Zone Configuration
+# =========================
+# TRACKING
+# =========================
+if MODE == "DEMO":
+    TRACKING_WINDOW_SEC = 8   # Match clip duration
+else:
+    TRACKING_WINDOW_SEC = 20
+
+CENTROID_MATCH_DISTANCE = 80  # More lenient matching
+
+
+# =========================
+# DISTRESS DETECTION
+# =========================
+
+# --- Prolonged Immobility ---
+if MODE == "DEMO":
+    IMMOBILITY_THRESHOLD_PX = 30      # Pixels - allow small movements
+    IMMOBILITY_DURATION_SEC = 2       # 2 seconds for demo clips
+else:
+    IMMOBILITY_THRESHOLD_PX = 20
+    IMMOBILITY_DURATION_SEC = 15
+
+
+# --- Sudden Collapse ---
+if MODE == "DEMO":
+    COLLAPSE_VERTICAL_DROP_PX = 40    # Lower threshold for smaller movements
+    COLLAPSE_TIME_WINDOW_SEC = 1.0    # 1 second window
+    COLLAPSE_POST_IMMOBILITY_SEC = 1  # 1 second post-collapse stillness
+else:
+    COLLAPSE_VERTICAL_DROP_PX = 100
+    COLLAPSE_TIME_WINDOW_SEC = 2
+    COLLAPSE_POST_IMMOBILITY_SEC = 3
+
+
+# --- Erratic Pacing (Phase 2) ---
+if MODE == "DEMO":
+    PACING_VELOCITY_THRESHOLD = 15    # Lower velocity threshold
+    PACING_DIRECTION_CHANGES = 2      # Fewer direction changes needed
+else:
+    PACING_VELOCITY_THRESHOLD = 30
+    PACING_DIRECTION_CHANGES = 3
+
+
+# --- Repeated Bending (Phase 2) ---
+if MODE == "DEMO":
+    BENDING_OSCILLATION_MIN = 2       # Just 2 oscillations
+    BENDING_AMPLITUDE_PX = 15         # Smaller amplitude
+else:
+    BENDING_OSCILLATION_MIN = 3
+    BENDING_AMPLITUDE_PX = 30
+
+
+# --- Crowd Formation ---
+if MODE == "DEMO":
+    CROWD_RADIUS_PX = 150             # Larger radius
+    CROWD_MIN_PEOPLE = 2              # Just 2 people converging
+    CROWD_DURATION_SEC = 1            # 1 second duration
+else:
+    CROWD_RADIUS_PX = 100
+    CROWD_MIN_PEOPLE = 3
+    CROWD_DURATION_SEC = 10
+
+
+# =========================
+# CONFIDENCE THRESHOLDS
+# =========================
+if MODE == "DEMO":
+    CONFIDENCE_LOG_ONLY = 0.3         # Lower threshold to catch more events
+    CONFIDENCE_SOFT_ALERT = 0.5
+    CONFIDENCE_REQUIRES_CONFIRMATION = 0.6
+else:
+    CONFIDENCE_LOG_ONLY = 0.5
+    CONFIDENCE_SOFT_ALERT = 0.7
+    CONFIDENCE_REQUIRES_CONFIRMATION = 0.7
+
+
+# =========================
+# ZONE CONFIGURATION
+# =========================
 DEFAULT_ZONE = "WAITING_AREA"

@@ -28,3 +28,17 @@ export interface StatCard {
     };
     content: React.ReactNode;
 }
+
+export interface RedirectionDecision {
+  id: string;
+  patientId: string;
+  fromHospital: string;
+  toHospital: string;
+  decisionType: "safe" | "conditional" | "standard";
+  reason: string;
+  time: string;
+  status: "completed" | "pending" | "failed";
+  confidenceScore?: number;
+  policyApplied?: string;
+  constraints?: string[];
+}

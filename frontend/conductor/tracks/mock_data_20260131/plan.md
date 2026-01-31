@@ -9,14 +9,10 @@
     - [ ] Implement getPatientFlowData utility with simulated delay.
 - [x] Task: Conductor - User Manual Verification 'Data Architecture' (Protocol in workflow.md)
 
-## Phase 2: Component Integration
+## Phase 2: Component Integration [checkpoint: 17595d7]
 - [x] Task: Refactor PatientFlowChart Component 9b40cd3
-    - [ ] Write unit tests for PatientFlowChart rendering with mock data.
-    - [ ] Update component to fetch data on mount.
-    - [ ] Replace hardcoded chart data with state-driven dynamic data.
 - [x] Task: Implement Data Refresh Logic (Optional/Bonus) be34c60
-    - [ ] Add a simple "Refresh" button or polling mechanism for simulation feel.
-- [ ] Task: Conductor - User Manual Verification 'Component Integration' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Component Integration' (Protocol in workflow.md)
 
 ## Phase 3: Final Verification
 - [ ] Task: End-to-End Visual Check

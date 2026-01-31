@@ -8,6 +8,7 @@ class VitalityApplicationTests {
 
 	@Test
 	void contextLoads() {
+		
 	}
 
 }

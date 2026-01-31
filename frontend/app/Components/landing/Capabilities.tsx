@@ -31,7 +31,7 @@ export default function LandingCapabilities() {
                 </div>
                 <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
                     {info.map((item, index) => (
-                        <div className="group flex flex-col rounded-xl border border-slate-200 bg-white p-6 shadow-sm transition-all hover:border-[#0ea5e9]/50 hover:shadow-md dark:border-slate-800 dark:bg-slate-900">
+                        <div key={index} className="group flex flex-col rounded-xl border border-slate-200 bg-white p-6 shadow-sm transition-all hover:border-[#0ea5e9]/50 hover:shadow-md dark:border-slate-800 dark:bg-slate-900">
                             <div className="mb-4 inline-flex size-12 items-center justify-center rounded-lg bg-[#0ea5e9]/10 text-[#0ea5e9] group-hover:bg-[#0ea5e9] group-hover:text-white transition-colors">
                                 {item.icon}
                             </div>

@@ -32,7 +32,7 @@ export default function LandingHowItWorks() {
                 <div className="relative">
                     <div className="relative flex flex-col gap-8">
                         {data.map((item, index) => (
-                            <div className="flex gap-6">
+                            <div key={index} className="flex gap-6">
                                 <div className="flex flex-col items-center">
                                     <div className="flex size-10 p-1 items-center justify-center rounded-full bg-white border-2 border-primary text-[#0ea5e9] shadow-sm dark:bg-slate-800 dark:border-primary">
                                         {item.icon}

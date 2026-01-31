@@ -1,11 +1,11 @@
 "use client";
 
 import React from "react";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Menu, Search, Plus, ChevronDown } from "lucide-react";
+import { Menu, Plus, ChevronDown } from "lucide-react";
 import { useSidebar } from "@/components/ui/sidebar";
+import { SearchBar } from "@/app/Components/Common/SearchBar";
 
 export const DashboardNavBar = () => {
     const { toggleSidebar } = useSidebar();
@@ -23,14 +23,11 @@ export const DashboardNavBar = () => {
                     City Overview
                 </h1>
             </div>
-            <div className="hidden lg:flex flex-1 max-w-lg mx-8 relative">
-                <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Search className="h-5 w-5 text-gray-400" />
-                </span>
-                <Input
-                    className="block w-full pl-10 pr-3 py-2 border border-border-light dark:border-border-dark rounded-full leading-5 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-primary sm:text-sm transition-colors"
+            <div className="hidden lg:flex flex-1 max-w-lg mx-8">
+                <SearchBar
                     placeholder="Search hospitals, IDs, or alerts..."
-                    type="text"
+                    variant="rounded"
+                    size="md"
                 />
             </div>
             <div className="flex items-center gap-4">
@@ -71,4 +68,3 @@ export const DashboardNavBar = () => {
         </header>
     );
 };
-

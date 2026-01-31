@@ -10,16 +10,16 @@
 
 ## 1. Executive Summary
 
-The **Adaptive City-Scale Hospital Triage System (ACHTS)** is a real-time, distributed decision-support platform designed to manage **patient prioritization, hospital load balancing, and emergency surge handling across multiple hospitals within a city**.
+The **Adaptive City-Scale Hospital Triage System (ACHTS)** is a real-time, distributed, and ethically grounded decision-support platform designed to manage **patient prioritization, hospital load balancing, and emergency surge handling across multiple hospitals within a city**.
 
-**Scope Note:** This implementation focuses strictly on the **Backend Logic and Simulation Engine**. Frontend integration is deferred.
-
-The system extends traditional single-hospital triage by using a **Logical Single Control Plane** to simulate:
-
+The system extends traditional single-hospital triage by introducing:
 - **Multi-hospital coordination**
 - **Intelligent patient redirection**
-- **Behavioral distress detection (Simulated Inputs)**
+- **Behavioral distress detection using CCTV and human-in-the-loop confirmation**
 - **Explainable, policy-driven scheduling**
+- **Graceful degradation under extreme stress**
+
+ACHTS is **not a medical decision-maker**. It does **not diagnose, prescribe, or override clinical judgment**. Instead, it provides **operational intelligence** to assist hospital staff and administrators in making faster, fairer, and more transparent decisions.
 
 ---
 
@@ -27,167 +27,374 @@ The system extends traditional single-hospital triage by using a **Logical Singl
 
 Modern urban healthcare systems face systemic challenges that cannot be solved at a single-hospital level:
 
-1. **Localized Patient Surges**
+1. **Localized Patient Surges**  
    Accidents, outbreaks, or public events overload specific hospitals while others remain underutilized.
 
-2. **Uneven Resource Distribution**
+2. **Uneven Resource Distribution**  
    Doctors, ICU beds, and equipment availability vary significantly across hospitals.
 
-3. **Static Triage Models**
-   FIFO or static-priority queues fail during overload, causing excessive waits for critical patients.
+3. **Static Triage Models**  
+   FIFO or static-priority queues fail during overload, causing:
+   - Excessive waits for critical patients
+   - Starvation of non-critical patients
+   - Ethical ambiguity and lack of transparency
 
-4. **Lack of System-Wide Visibility**
+4. **Invisible Distress Signals**  
+   Patients deteriorate while waiting, and staff may not immediately notice observable distress (collapse, vomiting, immobility).
+
+5. **Lack of System-Wide Visibility**  
    Hospitals operate in silos with no real-time view of city-wide stress.
 
-**ACHTS addresses these issues by treating the city as a coordinated healthcare system.**
+**ACHTS addresses these issues by treating the city as a coordinated healthcare system rather than isolated facilities.**
 
 ---
 
 ## 3. Goals & Success Criteria
 
 ### 3.1 Primary Goals
+- Always prioritize critical patients ethically and transparently
+- Coordinate patient flow across multiple hospitals
+- Detect and react to real-time distress signals
+- Support continuous patient arrivals (streaming)
+- Treat multiple patients in parallel across hospitals
+- Handle doctor shortages and hospital overload gracefully
 
-- **Backend Core:** Implement a robust concurrency model for patient queuing and doctor thread pools.
-- **Triage Logic:** Always prioritize critical patients ethically using dynamic scoring.
-- **Coordination:** Simulate 3+ hospitals exchanging load data and accepting redirections.
-- **Simulation:** Create a "God-Mode" simulation that injects patient surges and distress events to test stability.
+### 3.2 Secondary Goals
+- Prevent starvation of lower-severity patients
+- Provide explainable scheduling and redirection decisions
+- Support human override and confirmation
+- Enable live simulation and stress testing
+- Expose rich real-time metrics for monitoring
 
-### 3.2 Success Criteria
-
-- **Stability:** System handles 1000+ concurrent simulated patients without crashing (Single JVM).
-- **Correctness:** High-severity patients are served first; redirection occurs only when beneficial.
-- **Explainability:** Every decision (Wait vs. Redirect) produces a readable log/reason.
+### 3.3 Success Criteria
+- No system crashes under extreme surge
+- No interruption of active treatments
+- Ethical and explainable redirection decisions
+- Observable fairness across hospitals
+- Clear operational insights for staff and admins
 
 ---
 
 ## 4. Scope Definition
 
-### 4.1 In Scope (Backend & Simulation)
+### 4.1 In Scope
+- Multi-hospital coordination within a city
+- Priority-based triage and scheduling
+- Intelligent patient redirection
+- Behavioral distress signal ingestion (CCTV or simulated)
+- Human-in-the-loop confirmation
+- Dynamic doctor and capacity scaling
+- Real-time metrics and dashboards
+- Simulation engine
 
-- **City Triage Orchestrator (Logic):** Aggregates state and suggests redirects.
-- **Hospital Nodes (Simulated):** Independent objects with local queues and thread pools.
-- **Triage Algorithm:** Dynamic priority calculation (Severity + Wait Time + Distress).
-- **Simulation Engine:** Scriptable injector for patient arrivals and distress updates.
-- **API Layer:** REST endpoints to inspect state, trigger events, and fetch metrics.
-
-### 4.2 Deferred / Out of Scope
-
-- **Frontend UI:** Web dashboards (React/Next.js) are deferred.
-- **Real Video Processing:** CCTV analysis is simulated via JSON event injection.
-- **Physical Distributed Deployment:** System runs in a single JVM (Logical Microservices).
-- **Permanent Persistence:** In-memory storage is sufficient for the simulation.
+### 4.2 Out of Scope
+- Medical diagnosis or treatment decisions
+- Automated life-critical actions without human confirmation
+- Inter-city or national coordination
+- Long-term patient data storage
+- Legal or billing workflows
 
 ---
 
-## 5. High-Level Architecture (Logical Simulation)
+## 5. Assumptions & Constraints
 
-**Pattern:** Monolithic Spring Boot App simulating a Distributed System.
+- Treatment is **non-preemptive**
+- One doctor treats one patient at a time
+- Severity is externally assigned (triage nurse / system input)
+- CCTV analysis detects **behavioral distress**, not medical conditions
+- System runs as a logical single control plane (can be simulated in one JVM)
+- All queues are explicitly bounded
+
+---
+
+## 6. High-Level System Architecture
 
 ```
-+-------------------------------------------------------------+
-|  JVM (Spring Boot Context)                                  |
-|                                                             |
-|  [Simulation Controller] ---> [Event Injector]              |
-|           |                                                 |
-|           v                                                 |
-|  [City Orchestrator Service] <---- Global State Map         |
-|           |                                                 |
-|           +---> [Hospital A Service] (Queue + ThreadPool)   |
-|           |                                                 |
-|           +---> [Hospital B Service] (Queue + ThreadPool)   |
-|           |                                                 |
-|           +---> [Hospital C Service] (Queue + ThreadPool)   |
-|                                                             |
-+-------------------------------------------------------------+
+                City Triage Orchestrator
+                         |
+      -------------------------------------------------
+      |                     |                        |
+Hospital A            Hospital B                Hospital C
+(Local Triage)        (Local Triage)            (Local Triage)
 ```
 
-### Key Architectural Decisions
+### Key Architectural Principle
+- **Decentralized execution, centralized intelligence**
 
-- **Communication:** Method calls mimic network requests (e.g., `orchestrator.requestRedirect(patient)`).
-- **Concurrency:** Each "Hospital" has its own `ThreadPoolExecutor` representing doctors.
-- **Isolation:** Hospitals do not share queues; they only communicate via the Orchestrator.
-
----
-
-## 6. Core Components
-
-### 6.1 Hospital Service (The Node)
-
-- **Waiting Room:** `PriorityBlockingQueue<Patient>`
-  - Ordered by `FinalPriority`.
-- **Medical Staff:** `ThreadPoolExecutor`
-  - Core Pool Size = Number of Doctors.
-  - Task = `treatPatient(Patient p)`.
-  - Thread sleep simulates treatment duration.
-
-### 6.2 Triage & Priority Engine
-
-**Formula:**
-`Priority = BaseSeverity + (WaitTime * AgingFactor) + DistressBonus`
-
-- **Severity:** 1 (Low) to 10 (Critical).
-- **DistressBonus:** Dynamic boost from simulated CCTV events.
-
-### 6.3 Orchestrator Service
-
-- Monitors `queueSize` and `estimatedWaitTime` of all hospitals.
-- **Redirection Logic:**
-  - IF `Hospital A` is overloaded AND `Hospital B` has capacity
-  - AND `TransferTime + WaitTime_B < WaitTime_A`
-  - THEN Suggest Redirect.
+Hospitals operate independently but publish state to a city-level orchestrator that assists with redirection and policy decisions.
 
 ---
 
-## 7. Data Models (Simplified)
+## 7. Core Components
 
-### 7.1 Patient
+### 7.1 City Triage Orchestrator
 
-```java
-class Patient {
-  String id;
-  int severity; // 1-10
-  long arrivalTime;
-  Hospital currentHospital;
-  boolean isTreating;
-}
+Responsibilities:
+- Aggregate real-time hospital metrics
+- Detect city-wide surges
+- Compute redirection recommendations
+- Enforce ethical and safety constraints
+
+Maintains:
+- Hospital registry
+- Load & capacity snapshots
+- Redirection policies
+
+---
+
+### 7.2 Hospital-Level Triage Engine
+
+Each hospital runs its own triage system with:
+- Local waiting queue
+- Doctor thread pool
+- Admission control
+
+Hospitals never lose autonomy; they **accept or reject redirection suggestions**.
+
+---
+
+### 7.3 Triage & Scheduling Engine
+
+#### Priority Calculation Model
+
+```
+FinalPriority =
+  BaseSeverity
+  + WaitingTimeBoost
+  + DistressBoost
+  - StabilityPenalty
 ```
 
-### 7.2 Distress Event (Simulated)
+Properties:
+- Severity-dominant
+- Time-aware
+- Distress-aware
+- Non-preemptive
 
-```java
-class DistressEvent {
-  String patientId;
-  String type; // "COLLAPSE", "VOMITING"
-  double confidence; // 0.0 - 1.0
-}
+Fairness aging ensures eventual service for long-waiting patients.
+
+---
+
+### 7.4 Policy-as-Code Engine
+
+All scheduling and redirection logic is configurable via policies:
+
+```yaml
+triagePolicy:
+  severityWeight: 10
+  agingEnabled: true
+  distressDecayRate: 0.1
+  overload:
+    minSeverity: 6
+```
+
+Benefits:
+- Hospital-specific customization
+- Live policy switching during simulations
+- Transparent decision logic
+
+---
+
+### 7.5 Concurrency Layer
+
+#### Waiting Room Queue
+- `PriorityBlockingQueue<Patient>`
+- Thread-safe
+- Lazy invalidation for updates
+- Bounded capacity
+
+#### Doctor Execution Pool
+- `ThreadPoolExecutor`
+- One thread = one doctor
+- Dynamically resizable
+- No treatment interruption
+
+---
+
+## 8. Behavioral Distress Signal Engine (BDSE)
+
+### 8.1 Purpose
+
+To detect **observable patient distress signals** using CCTV feeds or simulated events and assist staff in prioritization.
+
+### 8.2 Detected Signals
+- Sudden collapse or fall
+- Prolonged immobility
+- Repeated bending (possible nausea)
+- Erratic or agitated movement
+- Crowd gathering around a patient
+
+### 8.3 Key Safeguards
+- No medical inference
+- Signals are temporary
+- Human confirmation required for major priority jumps
+- Full audit logging
+
+---
+
+## 9. Human-in-the-Loop Design
+
+High-impact decisions require staff confirmation:
+
+1. System raises alert
+2. Nurse/admin reviews context
+3. Decision confirmed or rejected
+4. Action applied with audit trail
+
+This ensures:
+- Ethical compliance
+- Trust
+- Reduced false positives
+
+---
+
+## 10. Multi-Hospital Redirection Strategy
+
+### 10.1 Redirection Eligibility
+- Patient stability threshold
+- Severity ceiling for transport
+- Required specialization availability
+
+### 10.2 Redirection Score
+
+```
+RedirectScore =
+  (WaitTime_here - TravelTime - WaitTime_there)
+  × SeverityWeight
+```
+
+### 10.3 Redirection States
+- SAFE_REDIRECT
+- CONDITIONAL_REDIRECT
+- NO_REDIRECT
+
+Each decision includes an explainable reason.
+
+---
+
+## 11. Doctor Shortage & Fatigue Modeling
+
+Doctors are modeled as finite human resources:
+- Max continuous treatments
+- Fatigue cooldown periods
+- Temporary efficiency reduction
+
+This improves realism and system stability.
+
+---
+
+## 12. Surge Detection & Prediction
+
+### 12.1 Detection Signals
+- Queue growth rate
+- Arrival vs treatment rate
+- Distress signal density
+
+### 12.2 Predictive Heuristics
+
+If arrival rate exceeds rolling average by threshold:
+- Pre-activate overload policy
+- Prepare redirection
+
+No ML required for hackathon scope.
+
+---
+
+## 13. Monitoring & Observability
+
+### 13.1 Metrics Exposed
+- Queue size (per hospital)
+- Average & max wait time
+- Active treatments
+- Distress alerts
+- Redirections performed
+- Fairness index
+
+### 13.2 Fairness Index
+
+```
+FairnessIndex =
+(max_wait - min_wait) / avg_wait
 ```
 
 ---
 
-## 8. API Design (Inspection & Control)
+## 14. Simulation Engine
 
-Since there is no frontend, we rely on these endpoints for control/debug:
+Supports:
+- Artificial patient surges
+- Random doctor unavailability
+- Random distress events
+- Policy switching
+- Multi-hospital stress testing
 
-### 8.1 Simulation Control
-
-- `POST /api/simulation/start`: Reset state and start processing.
-- `POST /api/simulation/inject`: Add a specific test patient.
-- `POST /api/simulation/surge`: Trigger a random surge of N patients.
-
-### 8.2 Inspection
-
-- `GET /api/hospitals/{id}`: Get queue status and doctor usage.
-- `GET /api/city/metrics`: System-wide health checks.
+Used for:
+- Live demos
+- Validation
+- What-if analysis
 
 ---
 
-## 9. Technology Stack
+## 15. Ethical & Legal Considerations
 
-- **Language:** Java 17
-- **Framework:** Spring Boot 3.x / 4.x
-- **Build:** Gradle
-- **State:** In-Memory (`ConcurrentHashMap`, `AtomicInteger`) (No DB required)
-- **Testing:** JUnit 5 (Unit tests), MockMvc (Integration)
+- Advisory-only system
+- No automated treatment decisions
+- Human confirmation required
+- Transparent scoring & logs
+- Explicit overload signaling
+
+---
+
+## 16. Risks & Mitigations
+
+| Risk | Mitigation |
+|----|----|
+| False distress detection | Human confirmation |
+| Priority inflation | Decay & rollback |
+| Hospital overload | Redirection + admission control |
+| Staff mistrust | Explainable decisions |
+
+---
+
+## 17. Technology Stack
+
+### 17.1 Backend & Core Systems
+
+- **Language:** Java 17+
+- **Framework:** Spring Boot (REST APIs, scheduling, dependency injection)
+- **Concurrency:**
+  - `PriorityBlockingQueue` for patient waiting rooms
+  - `ThreadPoolExecutor` for doctor execution pools
+  - `CompletableFuture` for async orchestration (city-level)
+
+### 17.2 Data & State Management
+
+- **In-Memory Stores (Hackathon Scope):**
+  - `ConcurrentHashMap` for patient state, hospital registry
+  - `AtomicInteger / AtomicLong` for metrics
+- **Optional Persistence (Mock / Optional):**
+  - H2 / SQLite (for audit logs, replay)
+
+### 17.3 Video / Distress Signal Pipeline
+
+- **Input:**
+  - Simulated CCTV events (JSON)
+  - Optional webcam / prerecorded video
+- **Processing (Hackathon-Safe):**
+  - OpenCV (motion, posture heuristics)
+  - Event-based abstraction (no raw video storage)
+
+### 17.4 Frontend / Visualization (Optional but High Impact)
+
+- **Dashboard:** React / Next.js
+- **Charts:** Chart.js / Recharts
+- **Live Updates:** WebSockets / Server-Sent Events (SSE)
+
+### 17.5 DevOps & Tooling
+
+- Docker (single-node simulation)
+- Maven / Gradle
+- GitHub Actions (optional CI)
 
 ---
 
@@ -196,11 +403,9 @@ Since there is no frontend, we rely on these endpoints for control/debug:
 ### 18.1 Patient APIs
 
 #### Register New Patient
-
 ```
 POST /patients
 ```
-
 ```json
 {
   "patientId": "P123",
@@ -211,11 +416,9 @@ POST /patients
 ```
 
 #### Update Patient Condition
-
 ```
 POST /patients/{id}/update
 ```
-
 ```json
 {
   "severity": 8,
@@ -228,11 +431,9 @@ POST /patients/{id}/update
 ### 18.2 Hospital & Doctor APIs
 
 #### Update Doctor Availability
-
 ```
 POST /hospitals/{id}/doctors
 ```
-
 ```json
 {
   "availableDoctors": 12
@@ -240,7 +441,6 @@ POST /hospitals/{id}/doctors
 ```
 
 #### Hospital Metrics Snapshot
-
 ```
 GET /hospitals/{id}/metrics
 ```
@@ -250,11 +450,9 @@ GET /hospitals/{id}/metrics
 ### 18.3 City-Level Orchestrator APIs
 
 #### Register Hospital
-
 ```
 POST /city/hospitals
 ```
-
 ```json
 {
   "hospitalId": "HOSP_A",
@@ -264,11 +462,9 @@ POST /city/hospitals
 ```
 
 #### Redirection Recommendation
-
 ```
 POST /city/redirect/evaluate
 ```
-
 ```json
 {
   "patientId": "P123",
@@ -277,7 +473,6 @@ POST /city/redirect/evaluate
 ```
 
 **Response**
-
 ```json
 {
   "decision": "CONDITIONAL_REDIRECT",
@@ -291,11 +486,9 @@ POST /city/redirect/evaluate
 ### 18.4 Distress Signal APIs
 
 #### Report Distress Event
-
 ```
 POST /distress/event
 ```
-
 ```json
 {
   "patientId": "P123",
@@ -310,11 +503,9 @@ POST /distress/event
 ### 18.5 Admin & Policy APIs
 
 #### Update Triage Policy
-
 ```
 POST /admin/policy/update
 ```
-
 ```json
 {
   "severityWeight": 10,
@@ -324,11 +515,9 @@ POST /admin/policy/update
 ```
 
 #### Manual Override
-
 ```
 POST /admin/override
 ```
-
 ```json
 {
   "patientId": "P123",
@@ -342,7 +531,6 @@ POST /admin/override
 ## 19. Data Models
 
 ### 19.1 Patient
-
 ```java
 class Patient {
   String patientId;
@@ -355,7 +543,6 @@ class Patient {
 ---
 
 ### 19.2 PatientState (Mutable, Thread-Safe)
-
 ```java
 class PatientState {
   AtomicInteger currentSeverity;
@@ -367,7 +554,6 @@ class PatientState {
 ---
 
 ### 19.3 Hospital
-
 ```java
 class Hospital {
   String hospitalId;
@@ -380,7 +566,6 @@ class Hospital {
 ---
 
 ### 19.4 DistressEvent
-
 ```java
 class DistressEvent {
   String patientId;
@@ -394,7 +579,6 @@ class DistressEvent {
 ---
 
 ### 19.5 SchedulingDecision (Explainability)
-
 ```java
 class SchedulingDecision {
   String patientId;
@@ -422,3 +606,4 @@ ACHTS transforms hospital triage from a **local, reactive process** into a **cit
 ---
 
 **End of PRD**
+

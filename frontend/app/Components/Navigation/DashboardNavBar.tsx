@@ -1,0 +1,74 @@
+"use client";
+
+import React from "react";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Menu, Search, Plus, ChevronDown } from "lucide-react";
+import { useSidebar } from "@/components/ui/sidebar";
+
+export const DashboardNavBar = () => {
+    const { toggleSidebar } = useSidebar();
+
+    return (
+        <header className="h-16 bg-surface-light dark:bg-surface-dark border-b border-border-light dark:border-border-dark flex items-center justify-between px-6 transition-colors duration-200">
+            <div className="flex items-center">
+                <button
+                    onClick={toggleSidebar}
+                    className="mr-4 md:hidden text-gray-500 hover:text-gray-700"
+                >
+                    <Menu className="h-6 w-6" />
+                </button>
+                <h1 className="text-xl font-bold text-gray-900 dark:text-white">
+                    City Overview
+                </h1>
+            </div>
+            <div className="hidden lg:flex flex-1 max-w-lg mx-8 relative">
+                <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Search className="h-5 w-5 text-gray-400" />
+                </span>
+                <Input
+                    className="block w-full pl-10 pr-3 py-2 border border-border-light dark:border-border-dark rounded-full leading-5 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-primary sm:text-sm transition-colors"
+                    placeholder="Search hospitals, IDs, or alerts..."
+                    type="text"
+                />
+            </div>
+            <div className="flex items-center gap-4">
+                <Button
+                    size="icon"
+                    className="rounded-full bg-primary text-white hover:bg-blue-600 transition-colors shadow-sm"
+                >
+                    <Plus className="h-5 w-5" />
+                </Button>
+                <div className="h-6 w-px bg-gray-200 dark:bg-gray-700 mx-1"></div>
+                <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 px-3 py-1.5 bg-green-50 dark:bg-green-900/30 border border-green-100 dark:border-green-800 rounded-full">
+                        <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                        <span className="text-xs font-semibold text-green-700 dark:text-green-400">
+                            System Normal
+                        </span>
+                    </div>
+                </div>
+                <div className="flex items-center gap-3 pl-2">
+                    <div className="text-right hidden sm:block">
+                        <p className="text-sm font-semibold text-gray-900 dark:text-white leading-none">
+                            Darrell Steward
+                        </p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                            Super Admin
+                        </p>
+                    </div>
+                    <Avatar className="h-9 w-9 border border-gray-200 dark:border-gray-700">
+                        <AvatarImage
+                            src="https://lh3.googleusercontent.com/aida-public/AB6AXuB-lrC80wapEvCW34Xzr_70hcJUsqO4kLJNsLOFNh3WGsXpf8EpZHpmfI21nMcuX2400z9v6RRsMUk8CQxFvlResLxhR_Y2W1pYfcn_dOunGJIryxq-z4j0wKPsYWFqpXX5c515Ou2v7GoYkTcG-Npu8P9gcW_2LPci-tZegfdDur5l4ILVZrUYIYuqhc_k9REXitV87d0rJhVfpVXyPXvFG87xYUkSAntDOKqAiveNzCM9svZVRBUd3uXsDeRMFyZFwU3dkw65Rzo"
+                            alt="Darrell Steward"
+                        />
+                        <AvatarFallback>DS</AvatarFallback>
+                    </Avatar>
+                    <ChevronDown className="h-4 w-4 text-gray-400 cursor-pointer hover:text-gray-600" />
+                </div>
+            </div>
+        </header>
+    );
+};
+

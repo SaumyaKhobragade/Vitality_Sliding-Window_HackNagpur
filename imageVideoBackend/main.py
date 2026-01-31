@@ -1,8 +1,9 @@
 """
-Video-Based Behavioral Distress Detection (VBDD) API
+Hospital Triage AI Backend API
 
-FastAPI application for detecting behavioral distress patterns
-from recorded hospital waiting area footage.
+FastAPI application for:
+1. Video-Based Behavioral Distress Detection (VBDD)
+2. Image-Based Injury Severity Assist (ISA)
 
 Usage:
     uvicorn main:app --reload
@@ -13,32 +14,30 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from models.events import HealthResponse
 from api.routes import router as analysis_router
+from api.isa_routes import router as isa_router
 
 # Create FastAPI app
 app = FastAPI(
-    title="Video-Based Behavioral Distress Detection API",
+    title="Hospital Triage AI Backend",
     description="""
-    Detects observable behavioral distress patterns from video footage of hospital waiting areas.
+    AI-powered triage assistance system for hospital waiting areas.
     
-    ## Features
-    - **Frame sampling** at 1 FPS for efficient processing
-    - **Blob detection** using background subtraction
-    - **Behavioral analysis** for distress signals
-    - **Confidence scoring** to reduce false positives
+    ## Video Analysis (VBDD)
+    - Detects behavioral distress patterns from video footage
+    - Signals: PROLONGED_IMMOBILITY, SUDDEN_COLLAPSE, REPEATED_BENDING, ERRATIC_PACING, CROWD_FORMATION
     
-    ## Distress Signals Detected
-    - **PROLONGED_IMMOBILITY**: Person stationary for extended time
-    - **SUDDEN_COLLAPSE**: Rapid downward movement followed by immobility
+    ## Image Analysis (ISA)
+    - Analyzes injury images for severity assessment
+    - Provides routing recommendations based on visual features
     
     ## Ethical Safeguards
-    - No raw video frames are stored
-    - No facial recognition or emotion detection
-    - Heuristic-based, explainable detection only
-    - Human confirmation required for high-confidence alerts
+    - No raw media stored long-term
+    - No facial recognition or identity tracking
+    - Human confirmation required for all decisions
     """,
     version="1.0.0",
     contact={
-        "name": "VBDD Team",
+        "name": "Vitality Team",
     },
 )
 
@@ -53,21 +52,28 @@ app.add_middleware(
 
 # Include routers
 app.include_router(analysis_router, tags=["Video Analysis"])
+app.include_router(isa_router, prefix="/isa", tags=["Injury Analysis"])
 
 
 @app.get("/", tags=["Root"])
 async def root():
     """Root endpoint with API info."""
     return {
-        "name": "Video-Based Behavioral Distress Detection API",
+        "name": "Hospital Triage AI Backend",
         "version": "1.0.0",
         "docs_url": "/docs",
-        "endpoints": {
-            "analyze": "POST /analyze - Upload and analyze video",
-            "analyze_local": "POST /analyze-local - Analyze local video file",
-            "events": "GET /events - List all detected events",
-            "health": "GET /health - Health check"
-        }
+        "modules": {
+            "video_analysis": {
+                "analyze": "POST /analyze - Upload video for distress detection",
+                "events": "GET /events - List detected distress events"
+            },
+            "injury_analysis": {
+                "analyze": "POST /isa/analyze - Upload image for injury assessment",
+                "results": "GET /isa/results - List injury analysis results",
+                "health": "GET /isa/health - ISA module health check"
+            }
+        },
+        "health": "GET /health - Overall health check"
     }
 
 

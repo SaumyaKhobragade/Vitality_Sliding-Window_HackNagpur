@@ -1,4 +1,3 @@
-
 package com.example.Vitality.controller;
 
 import com.example.Vitality.model.Hospital;
@@ -7,7 +6,7 @@ import com.example.Vitality.service.HospitalService;
 import com.example.Vitality.service.OrchestratorService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
-
+import java.util.Random;
 import java.util.Map;
 
 @RestController
@@ -16,6 +15,7 @@ public class SimulationController {
 
     private final HospitalService hospitalService;
     private final OrchestratorService orchestratorService;
+    private final Random random = new Random();
 
     @Autowired
     public SimulationController(HospitalService hospitalService, OrchestratorService orchestratorService) {
@@ -24,12 +24,16 @@ public class SimulationController {
     }
 
     @PostMapping("/init")
-    public String initializeCity() {
-        // Create 3 default hospitals
-        hospitalService.createHospital("H1", "City General", 100);
-        hospitalService.createHospital("H2", "St. Marys", 50);
-        hospitalService.createHospital("H3", "Trauma Center", 80);
-        return "City Initialized with 3 Hospitals (H1, H2, H3)";
+    public String initializeCity(@RequestBody Map<String, String> body) {
+        int hospitalCount = Integer.parseInt(body.get("count"));
+
+        for (int i = 0; i < hospitalCount; i++) {
+            Hospital h = hospitalService.createHospital("H" + (i + 1), "Hospital #" + (i + 1), random.nextInt(100) + 1);
+            System.out.println(
+                    "Initialized Hospital " + h.getId() + " Name: " + h.getName() + " Capacity: " + h.getCapacity());
+        }
+
+        return "City Initialized with " + hospitalCount + " hospitals.";
     }
 
     @PostMapping("/patient")
@@ -63,6 +67,23 @@ public class SimulationController {
         String currentHospitalId = body.get("currentHospitalId");
 
         return orchestratorService.evaluateRedirection(patientId, currentHospitalId);
+    }
+
+    @PostMapping("/surge")
+    public String triggerSurge(@RequestBody Map<String, String> body) {
+        int count = Integer.parseInt(body.get("count"));
+        int hospitalCount = orchestratorService.getHospitalCount();
+        for (int i = 0; i < count; i++) {
+            String hId = "H" + (random.nextInt(hospitalCount) + 1);
+            Patient p = Patient.builder()
+                    .baseSeverity(random.nextInt(10) + 1)
+                    .targetHospitalId(hId)
+                    .arrivalTime(java.time.Instant.now().toEpochMilli())
+                    .build();
+            hospitalService.admitPatient(hId, p);
+
+        }
+        return "Injected " + count + " patients in the queue.";
     }
 
     @PostMapping("/distress")

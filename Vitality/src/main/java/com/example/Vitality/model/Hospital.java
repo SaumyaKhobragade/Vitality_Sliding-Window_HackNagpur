@@ -34,4 +34,17 @@ public class Hospital {
     public int getActiveDoctorCount() {
         return activeTreatments.get();
     }
+
+    public String getName() {
+        return this.name;
+    }
+
+    public String getId() {
+        return this.id;
+    }
+
+    public int getCapacity() {
+        return this.maxCapacity;
+    }
+
 }

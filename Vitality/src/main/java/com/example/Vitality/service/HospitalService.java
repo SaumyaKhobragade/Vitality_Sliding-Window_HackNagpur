@@ -3,18 +3,32 @@ package com.example.Vitality.service;
 import com.example.Vitality.model.Department;
 import com.example.Vitality.model.Hospital;
 import com.example.Vitality.model.Patient;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.Collection;
 import java.util.Map;
-import java.util.concurrent.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.PriorityBlockingQueue;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.CompletableFuture;
 
 @Service
 public class HospitalService {
 
-    private final Map<String, Hospital> cityHospitals = new ConcurrentHashMap<>();
-    // Global registry to find patients easily regardless of their state (Waiting or
-    // Treating)
+    // Global Patient Registry (simulating a central database)
     private final Map<String, Patient> masterPatientIndex = new ConcurrentHashMap<>();
+    private final Map<String, Hospital> cityHospitals = new ConcurrentHashMap<>();
+
+    private final SurgeDetectorService surgeDetectorService;
+
+    @Autowired
+    public HospitalService(SurgeDetectorService surgeDetectorService) {
+        this.surgeDetectorService = surgeDetectorService;
+    }
 
     // Simulation Constants
     private static final int TREATMENT_TIME_MS = 60000; // Simulated 60 seconds treatment
@@ -91,7 +105,10 @@ public class HospitalService {
     public void admitPatient(String hospitalId, Patient p) {
         Hospital h = cityHospitals.get(hospitalId);
         if (h != null) {
-            masterPatientIndex.put(p.getId(), p);
+            masterPatientIndex.put(p.getId(), p); // Register globally
+
+            // Notify Surge Detector
+            surgeDetectorService.recordArrival();
 
             // Routing Logic (Vertical Scaling)
             Department targetDept;
@@ -104,7 +121,8 @@ public class HospitalService {
             }
 
             h.getWaitingRooms().get(targetDept).offer(p);
-            System.out.println("Admitted " + p.getId() + " to " + hospitalId + " -> " + targetDept + " Queue");
+            System.out.println("Admitted " + p.getId() + " to " + hospitalId + " -> " + targetDept + " Queue | "
+                    + "Severity: " + p.getSeverity());
         }
     }
 

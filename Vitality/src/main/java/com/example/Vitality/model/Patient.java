@@ -35,9 +35,29 @@ public class Patient implements Comparable<Patient> {
      * Higher score = Higher priority.
      * Formula: BaseSeverity + (WaitTimeSeconds * 0.1) + DistressScore
      */
+    // Base Constants
+    private static double AGING_FACTOR = 0.5; // Normal Mode
+
+    public static void setAgingFactor(double factor) {
+        AGING_FACTOR = factor;
+    }
+
+    public static double getAgingFactor() {
+        return AGING_FACTOR;
+    }
+    public int getSeverity() {
+        return this.baseSeverity;
+    }
     public double getDynamicPriority() {
-        long waitSeconds = (Instant.now().toEpochMilli() - arrivalTime) / 1000;
-        return baseSeverity + (waitSeconds * 0.1) + distressScore.get();
+        if (isTreating) {
+            return 999.0; // Treating patients always have max priority visually
+        }
+
+        long waitTimeMs = System.currentTimeMillis() - arrivalTime;
+        double waitTimeMinutes = waitTimeMs / 60000.0;
+
+        // Dynamic Formula: Base + (Time * Factor) + Distress
+        return baseSeverity + (waitTimeMinutes * AGING_FACTOR) + distressScore.get();
     }
 
     @Override

@@ -13,10 +13,12 @@ import java.util.concurrent.PriorityBlockingQueue;
 public class OrchestratorService {
 
     private final HospitalService hospitalService;
+    private final SurgeDetectorService surgeDetectorService;
 
     @Autowired
-    public OrchestratorService(HospitalService hospitalService) {
+    public OrchestratorService(HospitalService hospitalService, SurgeDetectorService surgeDetectorService) {
         this.hospitalService = hospitalService;
+        this.surgeDetectorService = surgeDetectorService;
     }
 
     /**
@@ -39,6 +41,8 @@ public class OrchestratorService {
         int totalPatientsWaiting = 0;
         int totalDoctorsActive = 0;
 
+        List<Map<String, Object>> hospitalDetails = new ArrayList<>();
+
         for (Hospital h : hospitals) {
             totalPatientsWaiting += h.getTotalQueueSize();
             totalDoctorsActive += h.getActiveDoctorCount();
@@ -47,6 +51,7 @@ public class OrchestratorService {
         stats.put("totalHospitals", hospitals.size());
         stats.put("totalPatientsWaiting", totalPatientsWaiting);
         stats.put("totalDoctorsActive", totalDoctorsActive);
+        stats.put("surgeActive", surgeDetectorService.isSurgeActive()); // Expose Surge Status
 
         return stats;
     }
@@ -90,5 +95,9 @@ public class OrchestratorService {
         }
 
         return bestTargetId;
+    }
+
+    public int getHospitalCount() {
+        return hospitalService.getAllHospitals().size();
     }
 }

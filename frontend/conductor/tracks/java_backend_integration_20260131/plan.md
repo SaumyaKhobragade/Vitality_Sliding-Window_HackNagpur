@@ -19,7 +19,7 @@
 - [x] Task: Conductor - User Manual Verification 'WebSocket Infrastructure' (Protocol in workflow.md)
 
 ## Phase 3: UI Integration and Component Refactoring
-- [ ] Task: Integrate Real Data into Dashboard Components
+- [x] Task: Integrate Real Data into Dashboard Components 4d6985c
     - [ ] Refactor \DashboardStats\ to consume live data from \SimulationProvider\.
     - [ ] Refactor \PatientFlowChart\ to visualize real-time patient flow from the backend.
     - [ ] Update \HospitalStatusList\ and \LiveImpactAnalysis\ to reflect the active backend simulation state.

@@ -1,5 +1,5 @@
 "use client";
-import { Download } from "lucide-react";
+import { Download, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
     DropdownMenu,
@@ -21,9 +21,10 @@ import {
     Legend,
 } from "chart.js";
 import { Chart } from "react-chartjs-2";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { getPatientFlowData } from "@/lib/data";
 import { PatientFlowRecord } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 ChartJS.register(
     CategoryScale,
@@ -38,20 +39,24 @@ ChartJS.register(
 const PatientFlowChart = () => {
     const [data, setData] = useState<PatientFlowRecord[]>([]);
     const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
+
+    const fetchData = useCallback(async () => {
+        setRefreshing(true);
+        try {
+            const result = await getPatientFlowData();
+            setData(result);
+        } catch (error) {
+            console.error("Failed to fetch patient flow data", error);
+        } finally {
+            setLoading(false);
+            setRefreshing(false);
+        }
+    }, []);
 
     useEffect(() => {
-        const fetchData = async () => {
-            try {
-                const result = await getPatientFlowData();
-                setData(result);
-            } catch (error) {
-                console.error("Failed to fetch patient flow data", error);
-            } finally {
-                setLoading(false);
-            }
-        };
         fetchData();
-    }, []);
+    }, [fetchData]);
 
     const chartData = {
         labels: data.map(d => d.timestamp),
@@ -86,6 +91,15 @@ const PatientFlowChart = () => {
                     </p>
                 </div>
                 <div className="flex items-center gap-2">
+                    <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={fetchData} 
+                        className={cn("text-gray-400 hover:text-gray-600", refreshing && "animate-spin")}
+                        aria-label="Refresh Data"
+                    >
+                        <RefreshCw className="h-5 w-5" />
+                    </Button>
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <Button variant="outline">Last 1 Hour</Button>

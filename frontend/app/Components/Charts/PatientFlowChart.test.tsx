@@ -1,5 +1,5 @@
-import { render, screen, waitFor } from '@testing-library/react'
-import { vi, describe, it, expect, beforeEach } from 'vitest'
+import { render, screen, waitFor, cleanup } from '@testing-library/react'
+import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest'
 import PatientFlowChart from './PatientFlowChart'
 import * as DataModule from '@/lib/data'
 
@@ -24,6 +24,10 @@ vi.mock('chart.js', () => ({
 describe('PatientFlowChart', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+  })
+
+  afterEach(() => {
+    cleanup()
   })
 
   it('fetches data on mount and updates chart', async () => {
@@ -54,5 +58,32 @@ describe('PatientFlowChart', () => {
       expect(treatmentDS).toBeDefined()
       expect(treatmentDS.data).toEqual([2, 4])
     })
+  })
+
+  it('refreshes data when refresh button is clicked', async () => {
+    const mockData1 = [{ timestamp: '10:00', activePatients: 10, waiting: 5, discharged: 2, newArrivals: 3 }]
+    const mockData2 = [{ timestamp: '10:10', activePatients: 20, waiting: 10, discharged: 4, newArrivals: 6 }]
+
+    // Mock first call
+    const spy = vi.spyOn(DataModule, 'getPatientFlowData')
+      .mockResolvedValueOnce(mockData1)
+      .mockResolvedValueOnce(mockData2)
+
+    render(<PatientFlowChart />)
+
+    // Wait for initial load
+    await waitFor(() => {
+        const chart = screen.getByTestId('mock-chart')
+        // We verify the first data is loaded
+        const chartData = JSON.parse(chart.textContent!)
+        expect(chartData.labels).toEqual(['10:00'])
+    })
+
+    // Find and click refresh button (assumed to exist)
+    const refreshBtn = screen.getByRole('button', { name: /refresh/i })
+    refreshBtn.click()
+
+    // Expect second call
+    expect(spy).toHaveBeenCalledTimes(2)
   })
 })

@@ -4,7 +4,7 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ---
 
-- [~] **Track: Implement Mock Data Integration for Patient Flow Chart**
+- [x] **Track: Implement Mock Data Integration for Patient Flow Chart**
   *Link: [./tracks/mock_data_20260131/](./tracks/mock_data_20260131/)*
 
 ---

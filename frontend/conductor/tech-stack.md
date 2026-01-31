@@ -11,5 +11,6 @@
 - **Utilities:** \clsx\, \	ailwind-merge\, \class-variance-authority\
 
 ## Development Tools
+- **Testing:** [Vitest](https://vitest.dev/), [React Testing Library](https://testing-library.com/docs/react-testing-library/intro/)
 - **Linter:** [ESLint](https://eslint.org/)
 - **Package Manager:** npm (inferred from \package-lock.json\)

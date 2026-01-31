@@ -18,7 +18,7 @@ public class Hospital {
 
     // Multi-Tiered Resources
     @Builder.Default
-    private Map<Department, PriorityBlockingQueue<Patient>> waitingRooms = new ConcurrentHashMap<>();
+    public Map<Department, PriorityBlockingQueue<Patient>> waitingRooms = new ConcurrentHashMap<>();
 
     @Builder.Default
     private Map<Department, ThreadPoolExecutor> departmentalStaff = new ConcurrentHashMap<>();

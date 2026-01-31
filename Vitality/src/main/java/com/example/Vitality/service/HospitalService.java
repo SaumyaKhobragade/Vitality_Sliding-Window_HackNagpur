@@ -84,7 +84,7 @@ public class HospitalService {
         } finally {
             h.getActiveTreatments().decrementAndGet();
             masterPatientIndex.remove(p.getId());
-            System.out.println("Hospital " + h.getId() + " [" + dept + "]: Finished patient " + p.getId());
+            System.out.println("Hospital " + h.getId() + " [" + dept + "]: Finished treating patient " + p.getId());
         }
     }
 

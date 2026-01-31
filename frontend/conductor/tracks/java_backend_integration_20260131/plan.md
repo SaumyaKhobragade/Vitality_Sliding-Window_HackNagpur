@@ -23,7 +23,7 @@
 - [x] Task: Conductor - User Manual Verification 'UI Integration and Component Refactoring' (Protocol in workflow.md)
 
 ## Phase 4: Final Verification and Polishing
-- [ ] Task: End-to-End Simulation Testing
+- [x] Task: End-to-End Simulation Testing 540ab8e
     - [ ] Verify that triggering actions (like injecting a patient) via the UI correctly updates the WebSocket-driven components.
     - [ ] Test the reconnection logic by manually disconnecting the backend or simulating a network failure.
 - [ ] Task: Conductor - User Manual Verification 'Java Backend Integration' (Protocol in workflow.md)

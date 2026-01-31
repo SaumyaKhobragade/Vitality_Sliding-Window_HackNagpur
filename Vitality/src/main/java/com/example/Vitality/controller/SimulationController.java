@@ -1,3 +1,4 @@
+
 package com.example.Vitality.controller;
 
 import com.example.Vitality.model.Hospital;
@@ -70,15 +71,16 @@ public class SimulationController {
         String patientId = (String) body.get("patientId");
         int distressLevel = (int) body.get("distressLevel"); // e.g. 5 for "Collapse"
 
-        Hospital h = hospitalService.getHospital(hospitalId);
-        if (h != null) {
-            for (Patient p : h.getWaitingRoom()) {
-                if (p.getId().equals(patientId)) {
-                    p.getDistressScore().addAndGet(distressLevel);
-                    return "Updated distress for " + patientId + " (New Priority: " + p.getDynamicPriority() + ")";
-                }
-            }
+        // Fix: Find patient globally, as they might be in treatment (removed from
+        // queue)
+        Patient p = hospitalService.findPatient(patientId);
+
+        if (p != null) {
+            p.getDistressScore().addAndGet(distressLevel);
+            String status = p.isTreating() ? " (IN TREATMENT)" : " (WAITING)";
+            return "Updated distress for " + patientId + status + " -> New Priority: " + p.getDynamicPriority();
         }
-        return "Patient not found in " + hospitalId;
+
+        return "Patient not found (ID: " + patientId + ")";
     }
 }

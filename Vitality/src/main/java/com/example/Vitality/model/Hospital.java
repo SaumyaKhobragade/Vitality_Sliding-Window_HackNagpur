@@ -2,8 +2,9 @@ package com.example.Vitality.model;
 
 import lombok.Data;
 import lombok.Builder;
-import java.util.Set;
-import java.util.concurrent.BlockingQueue;
+import java.util.Map;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -15,20 +16,19 @@ public class Hospital {
     private String name;
     private int maxCapacity;
 
-    // Thread pool representing the doctors
-    // Not using @Builder for these complex objects, initialized in service or
-    // constructor
-    private ThreadPoolExecutor medicalStaff;
+    // Multi-Tiered Resources
+    @Builder.Default
+    private Map<Department, PriorityBlockingQueue<Patient>> waitingRooms = new ConcurrentHashMap<>();
 
-    // Waiting Room - Thread Safe Priority Queue
-    private PriorityBlockingQueue<Patient> waitingRoom;
+    @Builder.Default
+    private Map<Department, ThreadPoolExecutor> departmentalStaff = new ConcurrentHashMap<>();
 
     // Metrics
     @Builder.Default
     private AtomicInteger activeTreatments = new AtomicInteger(0);
 
-    public int getQueueSize() {
-        return waitingRoom.size();
+    public int getTotalQueueSize() {
+        return waitingRooms.values().stream().mapToInt(Queue::size).sum();
     }
 
     public int getActiveDoctorCount() {

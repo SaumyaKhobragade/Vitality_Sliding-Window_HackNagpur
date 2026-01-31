@@ -39,7 +39,7 @@ public class OrchestratorService {
         int totalDoctorsActive = 0;
 
         for (Hospital h : hospitals) {
-            totalPatientsWaiting += h.getQueueSize();
+            totalPatientsWaiting += h.getTotalQueueSize();
             totalDoctorsActive += h.getActiveDoctorCount();
         }
 
@@ -66,16 +66,15 @@ public class OrchestratorService {
         // Current estimated wait at source (Simple heuristic: queueSize *
         // avgTreatmentTime / activeDoctors)
         // For hackathon, just use queue size as detailed simulation is hard
-        double waitSource = source.getQueueSize();
+        double waitSource = source.getTotalQueueSize();
 
         for (Hospital candidate : getAllHospitals()) {
             if (candidate.getId().equals(sourceHospitalId))
                 continue;
 
-            double waitCandidate = candidate.getQueueSize();
-            double travelCost = 5.0; // Simulated cost (e.g. 5 queue positions worth of time)
+            double waitCandidate = candidate.getTotalQueueSize();
+            double travelCost = 5.0; 
 
-            // Formula: Benefit = WaitSource - (WaitCandidate + TravelCost)
             double benefit = waitSource - (waitCandidate + travelCost);
 
             if (benefit > 0 && benefit > maxScore) {

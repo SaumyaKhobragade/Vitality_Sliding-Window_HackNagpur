@@ -1,9 +1,46 @@
+import React from "react";
+
+// Enums
+export type Department = 'NURSE' | 'GENERAL' | 'ICU';
+
+// Patient Model
 export interface Patient {
-    id: string;
-    severity: number;
-    waitTime: string;
-    status: string;
-    priorityScore: number;
+  id: string;
+  baseSeverity: number; // 1-10
+  arrivalTime: number; // Timestamp (ms)
+  targetHospitalId: string;
+  distressScore: number; // AtomicInteger serializes to number
+  treating: boolean; // Mapped from isTreating
+  dynamicPriority: number; // Calculated field
+  
+  // Legacy fields (optional for compatibility during migration)
+  severity?: number;
+  waitTime?: string;
+  status?: string;
+  priorityScore?: number;
+}
+
+// Hospital Model
+export interface Hospital {
+  id: string;
+  name: string;
+  maxCapacity: number;
+  // waitingRooms keys map to the Department enum
+  waitingRooms: Record<Department, Patient[]>;
+  // Note: departmentalStaff (ThreadPoolExecutor) is excluded as it doesn't serialize cleanly to useful JSON
+  activeTreatments: number; // AtomicInteger serializes to number
+
+  // Computed getters included in serialization
+  totalQueueSize: number;
+  activeDoctorCount: number;
+}
+
+// City Stats Model
+export interface CityStats {
+  totalHospitals: number;
+  totalPatientsWaiting: number;
+  totalDoctorsActive: number;
+  surgeActive: boolean;
 }
 
 export interface Treatment {

@@ -14,7 +14,7 @@
     - [ ] Write unit tests for PatientFlowChart rendering with mock data.
     - [ ] Update component to fetch data on mount.
     - [ ] Replace hardcoded chart data with state-driven dynamic data.
-- [ ] Task: Implement Data Refresh Logic (Optional/Bonus)
+- [x] Task: Implement Data Refresh Logic (Optional/Bonus) be34c60
     - [ ] Add a simple "Refresh" button or polling mechanism for simulation feel.
 - [ ] Task: Conductor - User Manual Verification 'Component Integration' (Protocol in workflow.md)
 

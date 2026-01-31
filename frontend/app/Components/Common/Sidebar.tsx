@@ -28,9 +28,12 @@ import {
     SidebarFooter,
     SidebarRail,
 } from "@/components/ui/sidebar";
+import { useAuth } from "@/app/Context/AuthContext";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 const Sidebar = () => {
     const pathname = usePathname();
+    const { user } = useAuth();
 
     return (
         <ShadcnSidebar collapsible="icon">
@@ -196,6 +199,26 @@ const Sidebar = () => {
                             </Link>
                         </SidebarMenuButton>
                     </SidebarMenuItem>
+                    {user && (
+                        <SidebarMenuItem>
+                            <div className="flex items-center gap-2 px-2 py-2 group-data-[collapsible=icon]:hidden">
+                                <Avatar className="h-8 w-8 border border-gray-200 dark:border-gray-700">
+                                    <AvatarImage src={user.avatarUrl} alt={user.name} />
+                                    <AvatarFallback>{user.name?.substring(0, 2).toUpperCase()}</AvatarFallback>
+                                </Avatar>
+                                <div className="flex flex-col min-w-0">
+                                    <span className="text-sm font-medium truncate">{user.name}</span>
+                                    <span className="text-xs text-gray-500 truncate">{user.email}</span>
+                                </div>
+                            </div>
+                            <div className="hidden group-data-[collapsible=icon]:flex items-center justify-center py-2">
+                                <Avatar className="h-8 w-8 border border-gray-200 dark:border-gray-700">
+                                    <AvatarImage src={user.avatarUrl} alt={user.name} />
+                                    <AvatarFallback>{user.name?.substring(0, 2).toUpperCase()}</AvatarFallback>
+                                </Avatar>
+                            </div>
+                        </SidebarMenuItem>
+                    )}
                 </SidebarMenu>
             </SidebarFooter>
             <SidebarRail />

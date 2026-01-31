@@ -1,12 +1,13 @@
 package com.example.Vitality.service;
 
 import com.example.Vitality.model.Hospital;
+import com.example.Vitality.model.Patient;
+import com.example.Vitality.model.Department;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
+import java.util.concurrent.PriorityBlockingQueue;
 
 @Service
 public class OrchestratorService {
@@ -73,7 +74,7 @@ public class OrchestratorService {
                 continue;
 
             double waitCandidate = candidate.getTotalQueueSize();
-            double travelCost = 5.0; 
+            double travelCost = 5.0;
 
             double benefit = waitSource - (waitCandidate + travelCost);
 

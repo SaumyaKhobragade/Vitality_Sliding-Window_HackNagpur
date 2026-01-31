@@ -12,7 +12,7 @@
     - [ ] Install \stompjs\ and \sockjs-client\ dependencies.
     - [ ] Create \lib/socket-service.ts\ to encapsulate STOMP connection, subscription, and reconnection logic.
     - [ ] Write unit tests for \socket-service.ts\ mocking the underlying WebSocket connection.
-- [ ] Task: Create Simulation Context Provider
+- [x] Task: Create Simulation Context Provider c5aee46
     - [ ] Implement \SimulationProvider\ in \pp/Components/Context/SimulationContext.tsx\ to manage global simulation state.
     - [ ] Integrate \SocketService\ within the provider to update state on incoming messages.
     - [ ] Write unit tests for \SimulationProvider\ verifying state updates from socket events.

@@ -43,6 +43,14 @@ export interface RedirectionDecision {
   constraints?: string[];
 }
 
+export interface PatientFlowRecord {
+  timestamp: string;
+  activePatients: number;
+  waiting: number;
+  discharged: number;
+  newArrivals: number;
+}
+
 export interface LogEntry {
   id: string;
   timestamp: string;

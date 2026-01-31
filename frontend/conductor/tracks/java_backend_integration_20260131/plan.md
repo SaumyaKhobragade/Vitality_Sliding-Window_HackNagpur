@@ -1,7 +1,7 @@
 ﻿# Implementation Plan: Java Backend Integration with WebSocket Updates
 
 ## Phase 1: API and Types Foundation
-- [ ] Task: Update Type Definitions and API Client
+- [x] Task: Update Type Definitions and API Client 0943f4c
     - [ ] Verify and update \lib/types.ts\ with all interfaces defined in \API_INTEGRATION.md\.
     - [ ] Create \lib/api-client.ts\ implementing REST calls for \init\, \patient\, \surge\, \distress\, \edirect\, \stats\, and \hospital\.
     - [ ] Write unit tests for \pi-client.ts\ to ensure correct request formatting and error handling.

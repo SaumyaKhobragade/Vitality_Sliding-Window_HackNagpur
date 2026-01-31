@@ -6,9 +6,11 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Menu, Plus, ChevronDown } from "lucide-react";
 import { useSidebar } from "@/components/ui/sidebar";
 import { SearchBar } from "@/app/Components/Common/SearchBar";
+import { useSimulation } from "@/app/Components/Context/SimulationContext";
 
 export const DashboardNavBar = () => {
     const { toggleSidebar } = useSidebar();
+    const { isConnected } = useSimulation();
 
     return (
         <header className="h-16 bg-surface-light dark:bg-surface-dark border-b border-border-light dark:border-border-dark flex items-center justify-between px-6 transition-colors duration-200">
@@ -39,10 +41,20 @@ export const DashboardNavBar = () => {
                 </Button>
                 <div className="h-6 w-px bg-gray-200 dark:bg-gray-700 mx-1"></div>
                 <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-2 px-3 py-1.5 bg-green-50 dark:bg-green-900/30 border border-green-100 dark:border-green-800 rounded-full">
-                        <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-                        <span className="text-xs font-semibold text-green-700 dark:text-green-400">
-                            System Normal
+                    <div className={`flex items-center gap-2 px-3 py-1.5 border rounded-full ${
+                        isConnected 
+                        ? "bg-green-50 dark:bg-green-900/30 border-green-100 dark:border-green-800" 
+                        : "bg-red-50 dark:bg-red-900/30 border-red-100 dark:border-red-800"
+                    }`}>
+                        <div className={`w-2 h-2 rounded-full animate-pulse ${
+                            isConnected ? "bg-green-500" : "bg-red-500"
+                        }`}></div>
+                        <span className={`text-xs font-semibold ${
+                            isConnected 
+                            ? "text-green-700 dark:text-green-400"
+                            : "text-red-700 dark:text-red-400"
+                        }`}>
+                            {isConnected ? "Connected" : "Disconnected"}
                         </span>
                     </div>
                 </div>

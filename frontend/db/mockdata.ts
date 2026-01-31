@@ -1,4 +1,14 @@
-import { LogEntry } from "@/lib/types";
+import { LogEntry, PatientFlowRecord } from "@/lib/types";
+
+export const PATIENT_FLOW_DATA: PatientFlowRecord[] = [
+  { timestamp: "10:00", activePatients: 45, waiting: 12, discharged: 5, newArrivals: 8 },
+  { timestamp: "10:10", activePatients: 52, waiting: 18, discharged: 3, newArrivals: 10 },
+  { timestamp: "10:20", activePatients: 58, waiting: 25, discharged: 4, newArrivals: 12 },
+  { timestamp: "10:30", activePatients: 65, waiting: 30, discharged: 6, newArrivals: 15 },
+  { timestamp: "10:40", activePatients: 62, waiting: 28, discharged: 8, newArrivals: 5 },
+  { timestamp: "10:50", activePatients: 60, waiting: 22, discharged: 10, newArrivals: 7 },
+  { timestamp: "11:00", activePatients: 55, waiting: 15, discharged: 12, newArrivals: 4 },
+];
 
 export const INITIAL_LOGS: LogEntry[] = [
   {

@@ -45,9 +45,11 @@ public class Patient implements Comparable<Patient> {
     public static double getAgingFactor() {
         return AGING_FACTOR;
     }
+
     public int getSeverity() {
         return this.baseSeverity;
     }
+
     public double getDynamicPriority() {
         if (isTreating) {
             return 999.0; // Treating patients always have max priority visually
@@ -64,5 +66,15 @@ public class Patient implements Comparable<Patient> {
     public int compareTo(Patient other) {
         // Higher priority comes first
         return Double.compare(other.getDynamicPriority(), this.getDynamicPriority());
+    }
+
+    public int getTreatmentTime() {
+        if (this.baseSeverity < 4) {
+            return 2000;
+        } else if (this.baseSeverity > 7) {
+            return 10000;
+        }
+
+        return 5000;
     }
 }

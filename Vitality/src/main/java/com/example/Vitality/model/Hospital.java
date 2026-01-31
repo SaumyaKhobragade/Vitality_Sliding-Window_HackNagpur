@@ -18,6 +18,8 @@ public class Hospital {
     private String id;
     private String name;
     private int maxCapacity;
+    private int x;
+    private int y;
 
     // Multi-Tiered Resources
     @Builder.Default
@@ -56,7 +58,13 @@ public class Hospital {
     public String getId() {
         return this.id;
     }
+    public int getX() {
+        return this.x;
+    }
 
+    public int getY() {
+        return this.y;
+    }
     public int getCapacity() {
         return this.maxCapacity;
     }

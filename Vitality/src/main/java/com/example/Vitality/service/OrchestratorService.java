@@ -30,7 +30,8 @@ public class OrchestratorService {
             int nurseQ = h.getDepartmentQueueSize(Department.NURSE);
             int genQ = h.getDepartmentQueueSize(Department.GENERAL);
             int icuQ = h.getDepartmentQueueSize(Department.ICU);
-            queueStats.append(String.format("[%s: N%d G%d I%d] ", h.getId(), nurseQ, genQ, icuQ));
+            queueStats.append(
+                    String.format("[%s(%d,%d): N%d G%d I%d] ", h.getId(), h.getX(), h.getY(), nurseQ, genQ, icuQ));
 
             for (Department dept : Department.values()) {
                 int[] stats = checkQueueForRedirects(h, dept);
@@ -138,9 +139,13 @@ public class OrchestratorService {
                 continue;
 
             double waitCandidate = candidate.getDepartmentQueueSize(requiredDept);
-            double travelCost = 3.0; // Reduced from 5.0 to allow more granular load balancing
 
-            double benefit = waitSource - (waitCandidate + travelCost);
+            // Balanced Formula: Cost = Queue + (Distance * 0.1)
+            // 10 units distance = 1 patient in queue.
+            double dist = Math.hypot(source.getX() - candidate.getX(), source.getY() - candidate.getY());
+            double distancePenalty = dist * 0.1;
+
+            double benefit = waitSource - (waitCandidate + distancePenalty);
 
             if (benefit > 0 && benefit > maxScore) {
                 maxScore = benefit;

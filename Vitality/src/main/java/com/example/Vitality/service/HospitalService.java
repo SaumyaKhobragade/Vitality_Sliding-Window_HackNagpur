@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.Collection;
 import java.util.Map;
+import java.util.Random;
 import java.util.Deque;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
@@ -25,6 +26,7 @@ public class HospitalService {
     // Global Patient Registry (simulating a central database)
     private final Map<String, Patient> masterPatientIndex = new ConcurrentHashMap<>();
     private final Map<String, Hospital> cityHospitals = new ConcurrentHashMap<>();
+    private final Random random = new Random();
 
     private final SurgeDetectorService surgeDetectorService;
 
@@ -44,6 +46,8 @@ public class HospitalService {
                 .id(id)
                 .name(name)
                 .maxCapacity(maxCapacity)
+                .x(random.nextInt(100))
+                .y(random.nextInt(100))
                 .build();
 
         // Initialize Departments
@@ -108,7 +112,7 @@ public class HospitalService {
                 + p.getDynamicPriority() + ")");
 
         try {
-            Thread.sleep(TREATMENT_TIME_MS);
+            Thread.sleep(p.getTreatmentTime());
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         } finally {

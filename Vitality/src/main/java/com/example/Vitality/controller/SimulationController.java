@@ -4,6 +4,7 @@ import com.example.Vitality.model.Hospital;
 import com.example.Vitality.model.Patient;
 import com.example.Vitality.service.HospitalService;
 import com.example.Vitality.service.OrchestratorService;
+import com.example.Vitality.service.WebSocketService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import java.util.Random;
@@ -18,12 +19,14 @@ public class SimulationController {
 
     private final HospitalService hospitalService;
     private final OrchestratorService orchestratorService;
+    private final WebSocketService webSocketService;
     private final Random random = new Random();
 
     @Autowired
-    public SimulationController(HospitalService hospitalService, OrchestratorService orchestratorService) {
+    public SimulationController(HospitalService hospitalService, OrchestratorService orchestratorService, WebSocketService webSocketService) {
         this.hospitalService = hospitalService;
         this.orchestratorService = orchestratorService;
+        this.webSocketService = webSocketService;
     }
 
     @PostMapping("/init")
@@ -35,6 +38,14 @@ public class SimulationController {
             System.out.println(
                     "Initialized Hospital " + h.getId() + " Name: " + h.getName() + " Capacity: " + h.getCapacity());
         }
+
+        // Broadcast initialization event
+        Map<String, Object> event = new HashMap<>();
+        event.put("type", "CITY_INITIALIZED");
+        event.put("hospitalCount", hospitalCount);
+        event.put("timestamp", System.currentTimeMillis());
+        event.put("message", "City initialized with " + hospitalCount + " hospitals");
+        webSocketService.broadcastEvent(event);
 
         return "City Initialized with " + hospitalCount + " hospitals.";
     }
@@ -51,6 +62,23 @@ public class SimulationController {
                 .build();
 
         hospitalService.admitPatient(hospitalId, p);
+
+        // Broadcast patient admission event
+        Map<String, Object> event = new HashMap<>();
+        event.put("type", "PATIENT_ADMITTED");
+        event.put("hospitalId", hospitalId);
+        event.put("patientId", p.getId());
+        event.put("severity", severity);
+        event.put("timestamp", System.currentTimeMillis());
+        event.put("message", "Patient " + p.getId() + " admitted to " + hospitalId + " with severity " + severity);
+        webSocketService.broadcastEvent(event);
+
+        // Broadcast updated hospital state
+        Hospital updatedHospital = hospitalService.getHospital(hospitalId);
+        if (updatedHospital != null) {
+            webSocketService.broadcastHospitalUpdate(updatedHospital);
+        }
+
         return "Patient " + p.getId() + " admitted to " + hospitalId + " with severity " + severity;
     }
 
@@ -86,6 +114,15 @@ public class SimulationController {
             hospitalService.admitPatient(hId, p);
 
         }
+
+        // Broadcast surge event
+        Map<String, Object> event = new HashMap<>();
+        event.put("type", "SURGE_TRIGGERED");
+        event.put("count", count);
+        event.put("timestamp", System.currentTimeMillis());
+        event.put("message", "Surge: " + count + " patients injected into city hospitals");
+        webSocketService.broadcastEvent(event);
+
         return "Injected " + count + " patients in the queue.";
     }
 
@@ -102,6 +139,18 @@ public class SimulationController {
         if (p != null) {
             p.getDistressScore().addAndGet(distressLevel);
             String status = p.isTreating() ? " (IN TREATMENT)" : " (WAITING)";
+
+            // Broadcast distress event
+            Map<String, Object> event = new HashMap<>();
+            event.put("type", "DISTRESS_DETECTED");
+            event.put("hospitalId", hospitalId);
+            event.put("patientId", patientId);
+            event.put("distressLevel", distressLevel);
+            event.put("newPriority", p.getDynamicPriority());
+            event.put("timestamp", System.currentTimeMillis());
+            event.put("message", "Distress: Patient " + patientId + status + " -> Priority: " + p.getDynamicPriority());
+            webSocketService.broadcastEvent(event);
+
             return "Updated distress for " + patientId + status + " -> New Priority: " + p.getDynamicPriority();
         }
 

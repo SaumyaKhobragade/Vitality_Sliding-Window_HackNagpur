@@ -45,13 +45,29 @@ export const SimulationProvider = ({ children }: { children: ReactNode }) => {
     // Setup Socket
     socketService.connect();
 
+    // Subscribe to city-wide statistics updates (every 2 seconds)
     socketService.subscribe("/topic/stats", (newStats: CityStats) => {
       setStats(newStats);
     });
 
-    // Subscribing to a generic hospital topic (actual topic structure may vary)
+    // Subscribe to individual hospital updates
     socketService.subscribe("/topic/hospital", (newHospital: Hospital) => {
         setHospitals((prev) => ({ ...prev, [newHospital.id]: newHospital }));
+    });
+
+    // Subscribe to real-time system events (patient admissions, surges, distress, etc.)
+    socketService.subscribe("/topic/events", (event: any) => {
+      console.log("🔔 Real-time event received:", event);
+      
+      // You can dispatch events to EventStream component or global state here
+      // Example: Add to event log, show toast notifications, etc.
+      if (event.type === "SURGE_TRIGGERED") {
+        console.warn(`⚠️ SURGE: ${event.count} patients injected`);
+      } else if (event.type === "DISTRESS_DETECTED") {
+        console.error(`🚨 DISTRESS: Patient ${event.patientId} at priority ${event.newPriority}`);
+      } else if (event.type === "PATIENT_ADMITTED") {
+        console.info(`✅ ADMITTED: Patient ${event.patientId} to ${event.hospitalId}`);
+      }
     });
 
     return () => {

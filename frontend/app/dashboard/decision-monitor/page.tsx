@@ -13,11 +13,28 @@ import {
   TrendingUp,
   Timer,
   Route,
+  ChevronDown,
+  ChevronUp,
+  Flag,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { RedirectionDecision } from "@/lib/types";
-import { DataTable, FilterOption } from "@/app/Components/Common/DataTable";
-import { ColumnDef } from "@tanstack/react-table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 
 // Mock data
 const mockDecisions: RedirectionDecision[] = [
@@ -158,79 +175,33 @@ const StatusBadge = ({ status }: { status: string }) => {
   );
 };
 
-// Define table columns
-const columns: ColumnDef<RedirectionDecision>[] = [
-  {
-    accessorKey: "patientId",
-    header: "Patient ID",
-    cell: ({ row }) => (
-      <span className="font-mono text-sm text-primary font-medium bg-primary/5 px-2 py-1 rounded">
-        {row.original.patientId}
-      </span>
-    ),
-  },
-  {
-    id: "route",
-    header: "Route (From → To)",
-    cell: ({ row }) => (
-      <div className="flex items-center gap-2 text-sm text-foreground">
-        <span className="font-medium">{row.original.fromHospital}</span>
-        <ArrowRight className="h-4 w-4 text-muted-foreground" />
-        <span className="font-medium">{row.original.toHospital}</span>
-      </div>
-    ),
-  },
-  {
-    accessorKey: "decisionType",
-    header: "Decision Type",
-    cell: ({ row }) => <DecisionTypeBadge type={row.original.decisionType} />,
-  },
-  {
-    accessorKey: "reason",
-    header: "Reason",
-    cell: ({ row }) => (
-      <span className="text-sm text-muted-foreground">
-        {row.original.reason}
-      </span>
-    ),
-  },
-  {
-    accessorKey: "time",
-    header: "Time",
-    cell: ({ row }) => (
-      <span className="text-sm text-muted-foreground">{row.original.time}</span>
-    ),
-  },
-  {
-    accessorKey: "status",
-    header: "Status",
-    cell: ({ row }) => <StatusBadge status={row.original.status} />,
-  },
-];
-
-// Filter options for DataTable
-const filterOptions: FilterOption[] = [
-  {
-    id: "decisionType",
-    label: "Decision Type",
-    options: [
-      { value: "safe", label: "Safe" },
-      { value: "conditional", label: "Conditional" },
-      { value: "standard", label: "Standard" },
-    ],
-  },
-  {
-    id: "status",
-    label: "Status",
-    options: [
-      { value: "completed", label: "Completed" },
-      { value: "pending", label: "Pending" },
-      { value: "failed", label: "Failed" },
-    ],
-  },
-];
-
 const DecisionMonitorPage = () => {
+  const [expandedRow, setExpandedRow] = useState<string | null>("2");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("any");
+  const [decisionTypeFilter, setDecisionTypeFilter] = useState("all");
+
+  const handleToggleRow = (id: string) => {
+    setExpandedRow(expandedRow === id ? null : id);
+  };
+
+  // Filter data based on search and filters
+  const filteredDecisions = mockDecisions.filter((decision) => {
+    const matchesSearch =
+      searchQuery === "" ||
+      decision.patientId.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      decision.fromHospital.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      decision.toHospital.toLowerCase().includes(searchQuery.toLowerCase());
+
+    const matchesStatus =
+      statusFilter === "any" || decision.status === statusFilter;
+
+    const matchesDecisionType =
+      decisionTypeFilter === "all" ||
+      decision.decisionType === decisionTypeFilter;
+
+    return matchesSearch && matchesStatus && matchesDecisionType;
+  });
   return (
     <div className="min-h-screen bg-background">
       <DashboardNavBar />
@@ -283,13 +254,225 @@ const DecisionMonitorPage = () => {
           />
         </div>
 
-        {/* DataTable with filters */}
-        <DataTable
-          columns={columns}
-          data={mockDecisions}
-          filters={filterOptions}
-          showFilters={true}
-        />
+        {/* Table with Filters */}
+        <div className="flex flex-col rounded-xl border border-border bg-surface-light dark:bg-surface-dark shadow-sm overflow-hidden">
+          {/* Search and Filters */}
+          <div className="p-4 border-b border-border flex flex-wrap gap-3 items-center">
+            <Input
+              placeholder="Search Patient ID or Hospital..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="max-w-sm"
+            />
+            <Select
+              value={decisionTypeFilter}
+              onValueChange={setDecisionTypeFilter}
+            >
+              <SelectTrigger className="w-auto h-9">
+                <SelectValue placeholder="Decision Type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Types</SelectItem>
+                <SelectItem value="safe">Safe</SelectItem>
+                <SelectItem value="conditional">Conditional</SelectItem>
+                <SelectItem value="standard">Standard</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-auto h-9">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="any">All Status</SelectItem>
+                <SelectItem value="completed">Completed</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="failed">Failed</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Table */}
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-35">Patient ID</TableHead>
+                  <TableHead className="w-75">Route (From → To)</TableHead>
+                  <TableHead className="w-40">Decision Type</TableHead>
+                  <TableHead>Reason</TableHead>
+                  <TableHead className="w-30">Time</TableHead>
+                  <TableHead className="w-35">Status</TableHead>
+                  <TableHead className="w-12.5"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredDecisions.map((decision) => (
+                  <React.Fragment key={decision.id}>
+                    {/* Main Row */}
+                    <TableRow
+                      className={`${expandedRow === decision.id
+                          ? "bg-primary/5 dark:bg-primary/5 border-l-4 border-l-primary"
+                          : ""
+                        }`}
+                    >
+                      <TableCell>
+                        <span className="font-mono text-sm text-primary font-medium bg-primary/5 px-2 py-1 rounded">
+                          {decision.patientId}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2 text-sm text-foreground">
+                          <span className="font-medium">
+                            {decision.fromHospital}
+                          </span>
+                          <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                          <span className="font-medium">
+                            {decision.toHospital}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <DecisionTypeBadge type={decision.decisionType} />
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-sm text-muted-foreground">
+                          {decision.reason}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-sm text-muted-foreground">
+                          {decision.time}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <StatusBadge status={decision.status} />
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <button
+                          onClick={() => handleToggleRow(decision.id)}
+                          className="text-muted-foreground hover:text-primary transition-colors"
+                        >
+                          {expandedRow === decision.id ? (
+                            <ChevronUp className="h-5 w-5" />
+                          ) : (
+                            <ChevronDown className="h-5 w-5" />
+                          )}
+                        </button>
+                      </TableCell>
+                    </TableRow>
+
+                    {/* Expanded Row */}
+                    {expandedRow === decision.id &&
+                      decision.confidenceScore && (
+                        <TableRow className="bg-slate-50/80 dark:bg-slate-800/30 border-l-4 border-l-primary/30">
+                          <TableCell colSpan={7} className="p-6">
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                              {/* Confidence Score */}
+                              <div className="flex flex-col gap-3">
+                                <div className="flex justify-between items-end">
+                                  <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                                    Redirect Confidence Score
+                                  </p>
+                                  <span className="text-2xl font-bold text-foreground">
+                                    {decision.confidenceScore}
+                                    <span className="text-sm font-normal text-muted-foreground">
+                                      /100
+                                    </span>
+                                  </span>
+                                </div>
+                                <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2.5">
+                                  <div
+                                    className="bg-primary h-2.5 rounded-full transition-all"
+                                    style={{
+                                      width: `${decision.confidenceScore}%`,
+                                    }}
+                                  ></div>
+                                </div>
+                                <p className="text-xs text-muted-foreground">
+                                  High confidence based on bed availability and
+                                  transport time.
+                                </p>
+                              </div>
+
+                              {/* Policy & Constraints */}
+                              <div className="flex flex-col gap-3 lg:col-span-2">
+                                <div className="flex flex-col sm:flex-row sm:items-center gap-4 border-b border-border pb-3">
+                                  <div>
+                                    <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                                      Policy Applied
+                                    </p>
+                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-800 dark:bg-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-600">
+                                      {decision.policyApplied}
+                                    </span>
+                                  </div>
+                                  {decision.constraints && (
+                                    <div className="sm:border-l sm:border-border sm:pl-4">
+                                      <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                                        Constraints Applied
+                                      </p>
+                                      <div className="flex flex-wrap gap-2">
+                                        {decision.constraints.map(
+                                          (constraint, idx) => (
+                                            <span
+                                              key={idx}
+                                              className="inline-flex items-center gap-1 text-xs text-foreground bg-background px-2 py-1 rounded border border-border shadow-sm"
+                                            >
+                                              {constraint}
+                                            </span>
+                                          ),
+                                        )}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                                {/* Actions */}
+                                <div className="flex justify-end gap-3 pt-1">
+                                  <button className="text-xs font-medium text-muted-foreground hover:text-foreground underline underline-offset-2">
+                                    View Full Audit Log
+                                  </button>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
+                                  >
+                                    <Flag className="h-4 w-4 mr-1" />
+                                    Flag Decision
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                  </React.Fragment>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* Pagination */}
+          <div className="px-6 py-4 border-t border-border flex items-center justify-between bg-slate-50 dark:bg-slate-900/20">
+            <p className="text-sm text-muted-foreground">
+              Showing{" "}
+              <span className="font-medium text-foreground">
+                {filteredDecisions.length}
+              </span>{" "}
+              of{" "}
+              <span className="font-medium text-foreground">
+                {mockDecisions.length}
+              </span>{" "}
+              decisions
+            </p>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" disabled>
+                Previous
+              </Button>
+              <Button variant="outline" size="sm" disabled>
+                Next
+              </Button>
+            </div>
+          </div>
+        </div>
       </main>
     </div>
   );

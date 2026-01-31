@@ -1,10 +1,10 @@
 import { render, screen, cleanup } from '@testing-library/react'
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest'
-import PatientFlowChart from './PatientFlowChart'
+import { LiveImpactAnalysis } from './LiveImpactAnalysis'
 
-// Mock chart.js to avoid canvas issues
+// Mock chart.js
 vi.mock('react-chartjs-2', () => ({
-  Chart: ({ data }: any) => <div data-testid="mock-chart" data-props={JSON.stringify(data)}>Mock Chart</div>
+  Line: ({ data }: any) => <div data-testid="mock-chart" data-props={JSON.stringify(data)}>Mock Chart</div>
 }))
 
 vi.mock('chart.js', () => ({
@@ -17,25 +17,25 @@ vi.mock('chart.js', () => ({
   Title: {},
   Tooltip: {},
   Legend: {},
+  Filler: {},
 }))
 
 const mockStats = {
   totalHospitals: 5,
-  totalPatientsWaiting: 50,
+  totalPatientsWaiting: 100,
   totalDoctorsActive: 20,
   surgeActive: false
 }
 
-// Mock context with stable stats reference
+// Mock context
 vi.mock('@/app/Components/Context/SimulationContext', () => ({
   useSimulation: () => ({
     stats: mockStats,
-    isConnected: true,
-    refreshStats: vi.fn()
+    isConnected: true
   })
 }))
 
-describe('PatientFlowChart', () => {
+describe('LiveImpactAnalysis', () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
@@ -45,9 +45,11 @@ describe('PatientFlowChart', () => {
   })
 
   it('renders chart with data from context', async () => {
-    render(<PatientFlowChart />)
+    render(<LiveImpactAnalysis />) 
     
-    // It should render immediately
+    // Check for Queue Total (100)
+    expect(screen.getByText('100')).toBeDefined() 
+    
     const chart = await screen.findByTestId('mock-chart')
     expect(chart).toBeDefined()
   })

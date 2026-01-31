@@ -1,3 +1,4 @@
+"use client";
 import React from "react";
 import { Card } from "@/components/ui/card";
 import {
@@ -8,51 +9,54 @@ import {
     Shuffle,
     ArrowDown,
 } from "lucide-react";
-
-const data = [
-    {
-        title: "Patients Waiting",
-        value: "234",
-        icon: <Users className="h-6 w-6" />,
-        color: "bg-blue-50 dark:bg-blue-900/30",
-        trend: "12%",
-        trendIcon: <TrendingUp className="h-4 w-4 mr-1" />,
-        trendColor: "text-green-500",
-        trendText: "vs last hour",
-    },
-    {
-        title: "Active Treatments",
-        value: "89",
-        icon: <Activity className="h-6 w-6" />,
-        color: "bg-green-50 dark:bg-green-900/30",
-        trend: "Stable",
-        trendIcon: <ArrowDown className="h-4 w-4 mr-1" />,
-        trendColor: "text-gray-500",
-        trendText: "flow rate",
-    },
-    {
-        title: "Overloaded",
-        value: "3",
-        icon: <TriangleAlert className="h-6 w-6" />,
-        color: "bg-red-50 dark:bg-red-900/30",
-        trend: "Critical",
-        trendIcon: <ArrowDown className="h-4 w-4 mr-1" />,
-        trendColor: "text-red-500",
-        trendText: "Action required",
-    },
-    {
-        title: "Redirections (15m)",
-        value: "8",
-        icon: <Shuffle className="h-6 w-6" />,
-        color: "bg-purple-50 dark:bg-purple-900/30",
-        trend: "2",
-        trendIcon: <ArrowDown className="h-4 w-4 mr-1" />,
-        trendColor: "text-green-500",
-        trendText: "vs prev 15m",
-    },
-]
+import { useSimulation } from "@/app/Components/Context/SimulationContext";
 
 const DashboardStats = () => {
+    const { stats } = useSimulation();
+
+    const data = [
+        {
+            title: "Patients Waiting",
+            value: stats?.totalPatientsWaiting.toString() || "0",
+            icon: <Users className="h-6 w-6" />,
+            color: "bg-blue-50 dark:bg-blue-900/30",
+            trend: "12%",
+            trendIcon: <TrendingUp className="h-4 w-4 mr-1" />,
+            trendColor: "text-green-500",
+            trendText: "vs last hour",
+        },
+        {
+            title: "Active Doctors",
+            value: stats?.totalDoctorsActive.toString() || "0",
+            icon: <Activity className="h-6 w-6" />,
+            color: "bg-green-50 dark:bg-green-900/30",
+            trend: "Stable",
+            trendIcon: <ArrowDown className="h-4 w-4 mr-1" />,
+            trendColor: "text-gray-500",
+            trendText: "flow rate",
+        },
+        {
+            title: "Overloaded",
+            value: "3",
+            icon: <TriangleAlert className="h-6 w-6" />,
+            color: "bg-red-50 dark:bg-red-900/30",
+            trend: "Critical",
+            trendIcon: <ArrowDown className="h-4 w-4 mr-1" />,
+            trendColor: "text-red-500",
+            trendText: "Action required",
+        },
+        {
+            title: "Redirections (15m)",
+            value: "8",
+            icon: <Shuffle className="h-6 w-6" />,
+            color: "bg-purple-50 dark:bg-purple-900/30",
+            trend: "2",
+            trendIcon: <ArrowDown className="h-4 w-4 mr-1" />,
+            trendColor: "text-green-500",
+            trendText: "vs prev 15m",
+        },
+    ];
+
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             {data.map((item, index) => (

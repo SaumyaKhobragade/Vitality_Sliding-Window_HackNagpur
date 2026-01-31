@@ -15,6 +15,8 @@ import {
 } from "chart.js";
 import { Line } from "react-chartjs-2";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { useSimulation } from "@/app/Components/Context/SimulationContext";
+import { useEffect, useState } from "react";
 
 // Register Chart.js components
 ChartJS.register(
@@ -27,10 +29,6 @@ ChartJS.register(
     Legend,
     Filler,
 );
-
-interface LiveImpactAnalysisProps {
-    chartData: ChartData<"line">;
-}
 
 const CHART_OPTIONS = {
     responsive: true,
@@ -62,13 +60,7 @@ const CHART_OPTIONS = {
     },
     scales: {
         x: {
-            grid: {
-                display: false,
-            },
-            ticks: {
-                color: "#94A3B8",
-                font: { family: "Inter", size: 10 },
-            },
+            display: false,
         },
         y: {
             grid: {
@@ -88,7 +80,34 @@ const CHART_OPTIONS = {
     },
 };
 
-export function LiveImpactAnalysis({ chartData }: LiveImpactAnalysisProps) {
+export function LiveImpactAnalysis() {
+    const { stats } = useSimulation();
+    const [history, setHistory] = useState<number[]>([]);
+
+    useEffect(() => {
+        if (stats) {
+            setHistory(prev => {
+                const newHistory = [...prev, stats.totalPatientsWaiting];
+                if (newHistory.length > 20) newHistory.shift();
+                return newHistory;
+            });
+        }
+    }, [stats]);
+
+    const chartData = {
+        labels: history.map((_, i) => i),
+        datasets: [
+            {
+                label: 'Queue Length',
+                data: history,
+                borderColor: '#94A3B8',
+                backgroundColor: 'rgba(148, 163, 184, 0.1)',
+                fill: true,
+                tension: 0.4,
+            }
+        ]
+    };
+
     return (
         <Card className="border-none shadow-sm ring-1 ring-neutral-200/60 bg-white h-full flex flex-col">
             <CardHeader className="flex flex-row items-center justify-between pb-6">
@@ -97,16 +116,6 @@ export function LiveImpactAnalysis({ chartData }: LiveImpactAnalysisProps) {
                     <CardTitle className="text-lg font-semibold text-neutral-text-primary">
                         Live Impact Analysis
                     </CardTitle>
-                </div>
-                <div className="flex items-center gap-4 text-xs font-medium text-neutral-text-secondary">
-                    <div className="flex items-center gap-1.5">
-                        <span className="w-2.5 h-2.5 rounded-full bg-[#0EA5E9]"></span>
-                        Wait Times
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                        <span className="w-2.5 h-2.5 rounded-full bg-[#94A3B8] opacity-50"></span>
-                        Queue Length
-                    </div>
                 </div>
             </CardHeader>
             <CardContent className="flex-1 flex flex-col gap-6">
@@ -117,13 +126,10 @@ export function LiveImpactAnalysis({ chartData }: LiveImpactAnalysisProps) {
                             Avg Wait
                         </div>
                         <div className="text-2xl font-bold text-neutral-text-primary">
-                            42
+                            --
                             <span className="text-sm font-normal text-neutral-text-secondary ml-0.5">
                                 m
                             </span>
-                        </div>
-                        <div className="text-xs font-semibold text-red-500 mt-1 flex items-center">
-                            <Activity className="w-3 h-3 mr-1" /> +12%
                         </div>
                     </div>
                     <div className="p-3 bg-neutral-50 rounded-xl border border-neutral-100">
@@ -131,10 +137,7 @@ export function LiveImpactAnalysis({ chartData }: LiveImpactAnalysisProps) {
                             Queue Total
                         </div>
                         <div className="text-2xl font-bold text-neutral-text-primary">
-                            1,204
-                        </div>
-                        <div className="text-xs font-semibold text-red-500 mt-1 flex items-center">
-                            <Activity className="w-3 h-3 mr-1" /> +8%
+                            {stats?.totalPatientsWaiting || 0}
                         </div>
                     </div>
                     <div className="p-3 bg-neutral-50 rounded-xl border border-neutral-100">
@@ -142,13 +145,10 @@ export function LiveImpactAnalysis({ chartData }: LiveImpactAnalysisProps) {
                             Processed
                         </div>
                         <div className="text-2xl font-bold text-neutral-text-primary">
-                            89
+                            --
                             <span className="text-sm font-normal text-neutral-text-secondary ml-0.5">
                                 /min
                             </span>
-                        </div>
-                        <div className="text-xs font-semibold text-green-500 mt-1 flex items-center">
-                            <CheckCircle2 className="w-3 h-3 mr-1" /> Stable
                         </div>
                     </div>
                     <div className="p-3 bg-neutral-50 rounded-xl border border-neutral-100">
@@ -157,9 +157,6 @@ export function LiveImpactAnalysis({ chartData }: LiveImpactAnalysisProps) {
                         </div>
                         <div className="text-2xl font-bold text-neutral-text-primary">
                             0
-                        </div>
-                        <div className="text-xs font-medium text-neutral-text-muted mt-1">
-                            Last 5 min
                         </div>
                     </div>
                 </div>

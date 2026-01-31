@@ -94,3 +94,16 @@ export interface LogEntry {
   level: "INFO" | "WARN" | "CRITICAL" | "SUCCESS" | "SYSTEM";
   message: string;
 }
+// Auth Types
+export interface User {
+  id: string;
+  name?: string;
+  email?: string;
+  avatarUrl?: string;
+}
+
+export interface Session {
+  user: User;
+  accessToken?: string;
+}
+

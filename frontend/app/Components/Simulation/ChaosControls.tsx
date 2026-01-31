@@ -35,6 +35,7 @@ interface ChaosControlsProps {
     setDistressFreq: (val: "LOW" | "MED" | "HIGH") => void;
     policyLogic: string;
     setPolicyLogic: (val: string) => void;
+    onTriggerSurge?: () => void;
 }
 
 export function ChaosControls({
@@ -46,6 +47,7 @@ export function ChaosControls({
     setDistressFreq,
     policyLogic,
     setPolicyLogic,
+    onTriggerSurge,
 }: ChaosControlsProps) {
     return (
         <section className="space-y-4">
@@ -70,7 +72,7 @@ export function ChaosControls({
                             <Users className="h-4 w-4" />
                         </div>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="space-y-4">
                         <div className="flex items-end justify-between mb-4">
                             <div className="text-3xl font-bold tabular-nums">
                                 {patientSurge.toFixed(1)}
@@ -92,6 +94,13 @@ export function ChaosControls({
                             onChange={setPatientSurge}
                             className="py-2"
                         />
+                        <Button
+                            variant="ghost"
+                            onClick={onTriggerSurge}
+                            className="w-full bg-blue-50 text-blue-700 hover:bg-blue-100 hover:text-blue-800 h-9 text-xs font-semibold uppercase tracking-wide mt-2"
+                        >
+                            <Zap className="w-3 h-3 mr-1.5" /> Trigger Surge
+                        </Button>
                     </CardContent>
                 </Card>
 

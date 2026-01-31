@@ -6,9 +6,11 @@ import { SimulationHeader } from "../../Components/Simulation/SimulationHeader";
 import { ChaosControls } from "../../Components/Simulation/ChaosControls";
 import { LiveImpactAnalysis } from "../../Components/Simulation/LiveImpactAnalysis";
 import { EventStream } from "../../Components/Simulation/EventStream";
+import * as ApiClient from "@/lib/api-client";
+import { toast } from "sonner";
 
 // --- Mock Data & Constants ---
-import { INITIAL_LOGS, INITIAL_CHART_DATA, LOG_TEMPLATES } from "@/db/mockdata";
+import { INITIAL_LOGS, LOG_TEMPLATES } from "@/db/mockdata";
 
 // --- Main Page Component ---
 
@@ -25,92 +27,55 @@ export default function SimulationPage() {
   const [isRunning, setIsRunning] = useState(false);
   const [logs, setLogs] = useState<LogEntry[]>(INITIAL_LOGS);
 
-  // Note: chartData state type is inferred or can be typed as ChartData<"line">
-  const [chartData, setChartData] = useState<any>(INITIAL_CHART_DATA);
-
-  // Simulation Interval
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-
-    if (isRunning) {
-      interval = setInterval(() => {
-        // Random log generation
+  const handleRunToggle = async () => {
+    const newState = !isRunning;
+    setIsRunning(newState);
+    
+    if (newState) {
+      try {
+        await ApiClient.initCity(5);
+        toast.success("Simulation initialized with 5 hospitals.");
+        
         const now = new Date();
-        const timeString = now.toLocaleTimeString("en-US", {
-          hour12: false,
-          hour: "2-digit",
-          minute: "2-digit",
-          second: "2-digit",
-        });
-
-        const newLog: LogEntry = {
-          id: Math.random().toString(36).substring(7),
-          timestamp: timeString,
-          level: Math.random() > 0.8 ? "WARN" : "INFO",
-          message:
-            Math.random() > 0.5
-              ? LOG_TEMPLATES.waitTimesSpike(Math.floor(Math.random() * 10))
-              : LOG_TEMPLATES.rerouting,
-        };
-
-        // Occasional critical error
-        if (Math.random() > 0.95) {
-          newLog.level = "CRITICAL";
-          newLog.message = LOG_TEMPLATES.surge(patientSurge);
-        }
-
-        setLogs((prev) => [...prev.slice(-15), newLog]);
-        setChartData((prev: any) => {
-          const newData0 = [...prev.datasets[0].data];
-          const newData1 = [...prev.datasets[1].data];
-
-          const lastVal0 = newData0[newData0.length - 1] as number;
-          const nextVal0 = Math.max(
-            10,
-            lastVal0 + (Math.random() * 6 - 2) * (patientSurge / 5),
-          );
-
-          newData0.shift();
-          newData0.push(nextVal0);
-
-          return {
-            ...prev,
-            datasets: [
-              { ...prev.datasets[0], data: newData0 },
-              { ...prev.datasets[1], data: newData1 },
-            ],
-          };
-        });
-      }, 2000);
-    }
-
-    return () => clearInterval(interval);
-  }, [isRunning, patientSurge]);
-
-  const handleRunToggle = () => {
-    setIsRunning(!isRunning);
-    if (!isRunning) {
-      // Add start log
-      const now = new Date();
-      setLogs((prev) => [
-        ...prev,
-        {
-          id: Date.now().toString(),
-          timestamp: now.toLocaleTimeString("en-US", { hour12: false }),
-          level: "SUCCESS",
-          message: "Simulation started.",
-        },
-      ]);
+        setLogs((prev) => [
+          ...prev,
+          {
+            id: Date.now().toString(),
+            timestamp: now.toLocaleTimeString("en-US", { hour12: false }),
+            level: "SUCCESS",
+            message: "Backend simulation initialized.",
+          },
+        ]);
+      } catch (error) {
+        console.error(error);
+        toast.error("Failed to initialize backend simulation.");
+        setIsRunning(false);
+      }
     }
   };
 
-  const handleReset = () => {
+  const handleReset = async () => {
     setIsRunning(false);
     setPatientSurge(1.0);
     setStaffDropout(0);
     setDistressFreq("LOW");
     setLogs(INITIAL_LOGS);
-    setChartData(INITIAL_CHART_DATA);
+    try {
+        await ApiClient.initCity(0);
+        toast.info("Simulation reset.");
+    } catch (e) {
+        // Ignore reset errors
+    }
+  };
+
+  const triggerBackendSurge = async () => {
+    try {
+        const count = Math.floor(patientSurge * 5);
+        await ApiClient.triggerSurge(count);
+        toast.success(`Injected ${count} patients into the city.`);
+    } catch (error) {
+        toast.error("Failed to trigger backend surge.");
+    }
   };
 
   return (
@@ -132,13 +97,14 @@ export default function SimulationPage() {
         setDistressFreq={setDistressFreq}
         policyLogic={policyLogic}
         setPolicyLogic={setPolicyLogic}
+        onTriggerSurge={triggerBackendSurge}
       />
 
       {/* --- Main Dashboard Area --- */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Col: Live Impact Analysis */}
         <div className="lg:col-span-2 space-y-6">
-          <LiveImpactAnalysis chartData={chartData} />
+          <LiveImpactAnalysis />
         </div>
 
         {/* Right Col: Event Stream */}

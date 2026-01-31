@@ -86,14 +86,27 @@ public class HospitalService {
         CompletableFuture.runAsync(() -> {
             while (!stopFlag.get()) { // Check flag before waiting
                 try {
-                    // Poll instead of take to allow periodic checking of the flag
-                    Patient p = queue.poll(2, TimeUnit.SECONDS);
+                    // 1. Primary Check (Blocking for a short time to prioritize own department)
+                    Patient p = queue.poll(100, TimeUnit.MILLISECONDS);
+
+                    // 2. Upward Referral Logic (If primary empty, check lower tiers)
+                    if (p == null) {
+                        if (dept == Department.ICU) {
+                            // ICU Checks General, then Nurse
+                            p = h.getWaitingRooms().get(Department.GENERAL).poll();
+                            if (p == null) {
+                                p = h.getWaitingRooms().get(Department.NURSE).poll();
+                            }
+                        } else if (dept == Department.GENERAL) {
+                            // General Checks Nurse
+                            p = h.getWaitingRooms().get(Department.NURSE).poll();
+                        }
+                    }
+
                     if (p != null) {
                         treatPatient(h, dept, p);
                         // User Requirement: Check stop flag AFTER treatment to ensure graceful exit
                         if (stopFlag.get()) {
-                            // System.out.println("Doctor in " + h.getId() + " [" + dept + "] finishing
-                            // shift gracefully.");
                             break;
                         }
                     }

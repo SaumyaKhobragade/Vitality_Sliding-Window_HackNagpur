@@ -5,7 +5,7 @@ Invoke-RestMethod -Method Post -Uri "http://localhost:9090/api/simulation/init" 
 echo "Flooding H1..."
 for ($i=1; $i -le 1000; $i++) {
     $body = @{
-        severity = 7
+        severity = 1
         hospitalId = "H1"
     } | ConvertTo-Json
     Invoke-RestMethod -Method Post -Uri "http://localhost:9090/api/simulation/patient" -Body $body -ContentType "application/json"
@@ -13,7 +13,7 @@ for ($i=1; $i -le 1000; $i++) {
 
 for($i =1;$i -le 1000;$i++) {
     $body = @{
-        severity = 10
+        severity = 1
         hospitalId = "H3"
     } | ConvertTo-Json
     Invoke-RestMethod -Method Post -Uri "http://localhost:9090/api/simulation/patient" -Body $body -ContentType "application/json"

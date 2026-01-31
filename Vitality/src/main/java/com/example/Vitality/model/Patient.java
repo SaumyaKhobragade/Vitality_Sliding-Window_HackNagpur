@@ -74,7 +74,6 @@ public class Patient implements Comparable<Patient> {
         } else if (this.baseSeverity > 7) {
             return 10000;
         }
-
         return 5000;
     }
 }

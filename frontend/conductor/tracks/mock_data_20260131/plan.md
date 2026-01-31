@@ -1,6 +1,6 @@
 ﻿# Implementation Plan: Implement Mock Data Integration for Patient Flow Chart
 
-## Phase 1: Data Architecture
+## Phase 1: Data Architecture [checkpoint: 1a89798]
 - [x] Task: Define Patient Flow Schema and Mock Data 8726a91
     - [ ] Define PatientFlowRecord interface in lib/types.ts.
     - [ ] Populate db/mockdata.ts with structured patient flow data.

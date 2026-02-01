@@ -1,39 +1,52 @@
 import { createClient } from "@/supabase/server";
-import { Hospital, Patient, CityStats, PatientFlowRecord, RedirectionDecision, Department, DistressEvent, Policy, TreatmentRecord, LogEntry } from "./types";
+import {
+  Hospital,
+  Patient,
+  CityStats,
+  PatientFlowRecord,
+  RedirectionDecision,
+  Department,
+  DistressEvent,
+  Policy,
+  TreatmentRecord,
+  LogEntry,
+} from "./types";
 
 // --- Mappers ---
 // ... existing mappers ...
 
 function mapTreatmentRecord(row: any): TreatmentRecord {
-    return {
-        id: row.id,
-        patientId: row.patient_id,
-        hospitalId: row.hospital_id,
-        type: row.type,
-        doctorName: row.doctor_name,
-        location: row.location,
-        startedAt: row.started_at,
-        progress: row.progress,
-        colorCode: row.color_code
-    };
+  return {
+    id: row.id,
+    patientId: row.patient_id,
+    hospitalId: row.hospital_id,
+    type: row.type,
+    doctorName: row.doctor_name,
+    location: row.location,
+    startedAt: row.started_at,
+    progress: row.progress,
+    colorCode: row.color_code,
+  };
 }
 
 // --- Data Access Functions ---
 // ... existing functions ...
 
-export async function getTreatments(hospitalId?: string): Promise<TreatmentRecord[]> {
+export async function getTreatments(
+  hospitalId?: string,
+): Promise<TreatmentRecord[]> {
   const supabase = await createClient();
   let query = supabase.from("treatments").select("*");
   if (hospitalId) {
     query = query.eq("hospital_id", hospitalId);
   }
-  
+
   const { data, error } = await query;
   if (error) {
     console.error("Error fetching treatments:", error);
     throw new Error(error.message);
   }
-  
+
   return data.map(mapTreatmentRecord);
 }
 
@@ -65,7 +78,7 @@ function mapPatient(row: any): Patient {
     arrivalTime: new Date(row.arrival_time).getTime(),
     targetHospitalId: row.target_hospital_id,
     distressScore: row.distress_score || 0,
-    treating: row.status === 'Treating',
+    treating: row.status === "Treating",
     dynamicPriority: row.priority_score || 0,
     status: row.status,
     severity: row.base_severity, // Legacy mapping
@@ -129,9 +142,7 @@ function mapPolicy(row: any): Policy {
 
 export async function getHospitals(): Promise<Hospital[]> {
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("hospitals")
-    .select("*");
+  const { data, error } = await supabase.from("hospitals").select("*");
 
   if (error) {
     console.error("Error fetching hospitals:", error);
@@ -160,7 +171,7 @@ export async function getHospitalById(id: string): Promise<Hospital | null> {
 export async function getPatients(hospitalId?: string): Promise<Patient[]> {
   const supabase = await createClient();
   let query = supabase.from("patients").select("*");
-  
+
   if (hospitalId) {
     query = query.eq("hospital_id", hospitalId);
   }
@@ -175,7 +186,9 @@ export async function getPatients(hospitalId?: string): Promise<Patient[]> {
   return data.map(mapPatient);
 }
 
-export async function getRedirectionDecisions(): Promise<RedirectionDecision[]> {
+export async function getRedirectionDecisions(): Promise<
+  RedirectionDecision[]
+> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("redirection_decisions")
@@ -191,53 +204,59 @@ export async function getRedirectionDecisions(): Promise<RedirectionDecision[]> 
 }
 
 export async function getCityStats(): Promise<CityStats> {
-    const supabase = await createClient();
-    
-    // fetch recent redirections count (last 15 mins)
-    const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString();
-    const { count: redirectionCount } = await supabase
-        .from("redirection_decisions")
-        .select("*", { count: 'exact', head: true })
-        .gte("created_at", fifteenMinutesAgo);
+  const supabase = await createClient();
 
-    // This assumes specific aggregations or a single stats row.
-    // Since we don't have a 'city_stats' table in schema.sql that maps 1:1,
-    // we might need to query 'analytics_snapshots' or aggregate 'hospitals' and 'patients'.
-    // For now, let's aggregate from hospitals/patients to be safe, or check analytics_snapshots.
-    // 'analytics_snapshots' has hospital_id=NULL for city-wide.
-    
-    const { data, error } = await supabase
-        .from("analytics_snapshots")
-        .select("*")
-        .is("hospital_id", null)
-        .order("timestamp", { ascending: false })
-        .limit(1)
-        .single();
-    
-    if (error || !data) {
-        // Fallback: Calculate from live tables if snapshot missing
-        // This is expensive but safe for fallback
-        const hospitals = await getHospitals();
-        const totalHospitals = hospitals.length;
-        const totalPatientsWaiting = hospitals.reduce((acc, h) => acc + h.totalQueueSize, 0);
-        const totalDoctorsActive = hospitals.reduce((acc, h) => acc + h.activeDoctorCount, 0);
-        
-        return {
-            totalHospitals,
-            totalPatientsWaiting,
-            totalDoctorsActive,
-            surgeActive: false, // Default
-            recentRedirections: redirectionCount || 0
-        };
-    }
+  // fetch recent redirections count (last 15 mins)
+  const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+  const { count: redirectionCount } = await supabase
+    .from("redirection_decisions")
+    .select("*", { count: "exact", head: true })
+    .gte("created_at", fifteenMinutesAgo);
+
+  // This assumes specific aggregations or a single stats row.
+  // Since we don't have a 'city_stats' table in schema.sql that maps 1:1,
+  // we might need to query 'analytics_snapshots' or aggregate 'hospitals' and 'patients'.
+  // For now, let's aggregate from hospitals/patients to be safe, or check analytics_snapshots.
+  // 'analytics_snapshots' has hospital_id=NULL for city-wide.
+
+  const { data, error } = await supabase
+    .from("analytics_snapshots")
+    .select("*")
+    .is("hospital_id", null)
+    .order("timestamp", { ascending: false })
+    .limit(1)
+    .single();
+
+  if (error || !data) {
+    // Fallback: Calculate from live tables if snapshot missing
+    // This is expensive but safe for fallback
+    const hospitals = await getHospitals();
+    const totalHospitals = hospitals.length;
+    const totalPatientsWaiting = hospitals.reduce(
+      (acc, h) => acc + h.totalQueueSize,
+      0,
+    );
+    const totalDoctorsActive = hospitals.reduce(
+      (acc, h) => acc + h.activeDoctorCount,
+      0,
+    );
 
     return {
-        totalHospitals: 0, // Snapshot might not store this, check schema
-        totalPatientsWaiting: data.total_patients_waiting,
-        totalDoctorsActive: data.total_doctors_active,
-        surgeActive: data.surge_active,
-        recentRedirections: redirectionCount || 0
+      totalHospitals,
+      totalPatientsWaiting,
+      totalDoctorsActive,
+      surgeActive: false, // Default
+      recentRedirections: redirectionCount || 0,
     };
+  }
+
+  return {
+    totalHospitals: 0, // Snapshot might not store this, check schema
+    totalPatientsWaiting: data.total_patients_waiting,
+    totalDoctorsActive: data.total_doctors_active,
+    surgeActive: data.surge_active,
+    recentRedirections: redirectionCount || 0,
+  };
 }
 
 export async function getAnalyticsSnapshots(): Promise<PatientFlowRecord[]> {
@@ -256,11 +275,14 @@ export async function getAnalyticsSnapshots(): Promise<PatientFlowRecord[]> {
   }
 
   return data.map((row: any) => ({
-    timestamp: new Date(row.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    timestamp: new Date(row.timestamp).toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    }),
     activePatients: row.total_treatments_active || 0,
     waiting: row.total_patients_waiting || 0,
     discharged: 0, // Not in snapshot schema currently
-    newArrivals: 0 // Not in snapshot schema currently
+    newArrivals: 0, // Not in snapshot schema currently
   }));
 }
 
@@ -294,7 +316,10 @@ export async function getPolicies(): Promise<Policy[]> {
   return data.map(mapPolicy);
 }
 
-export async function updatePolicy(id: string, updates: Partial<Policy>): Promise<Policy | null> {
+export async function updatePolicy(
+  id: string,
+  updates: Partial<Policy>,
+): Promise<Policy | null> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("policies")
@@ -319,7 +344,10 @@ export async function updatePolicy(id: string, updates: Partial<Policy>): Promis
   return mapPolicy(data);
 }
 
-export async function createSimulationLog(level: string, message: string): Promise<void> {
+export async function createSimulationLog(
+  level: string,
+  message: string,
+): Promise<void> {
   const supabase = await createClient();
   const { error } = await supabase
     .from("simulation_logs")
@@ -345,8 +373,35 @@ export async function getSimulationLogs(): Promise<LogEntry[]> {
 
   return data.map((row: any) => ({
     id: row.id,
-    timestamp: new Date(row.timestamp).toLocaleTimeString("en-US", { hour12: false }),
+    timestamp: new Date(row.timestamp).toLocaleTimeString("en-US", {
+      hour12: false,
+    }),
     level: row.level,
-    message: row.message
+    message: row.message,
   }));
+}
+
+export async function updateDistressEventStatus(
+  id: string,
+  status: string,
+  resolutionNotes?: string,
+): Promise<DistressEvent | null> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("distress_events")
+    .update({
+      status,
+      resolution_notes: resolutionNotes,
+      // resolved_by would be set from the current user context
+    })
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (error) {
+    console.error("Error updating distress event:", error);
+    return null;
+  }
+
+  return mapDistressEvent(data);
 }

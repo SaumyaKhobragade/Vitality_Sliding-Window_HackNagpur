@@ -19,7 +19,7 @@ export function SimulationStatusBadge() {
   return (
     <button
       onClick={() => router.push("/dashboard/simulation")}
-      className="fixed bottom-6 right-6 z-50 flex items-center gap-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white px-5 py-3 rounded-full shadow-2xl hover:shadow-3xl transition-all duration-300 hover:scale-105 group"
+      className="fixed bottom-6 right-6 z-50 flex items-center gap-3 bg-slate-800 text-white px-5 py-3 rounded-full shadow-2xl hover:shadow-3xl transition-all duration-300 hover:scale-105 group"
     >
       <div className="relative">
         {isRunning ? (
@@ -35,11 +35,11 @@ export function SimulationStatusBadge() {
         )}
       </div>
       <div className="text-left">
-        <div className="text-xs font-semibold opacity-90">
+        <div className="text-lg font-semibold opacity-90">
           {isRunning ? "Simulation Running" : "Simulation Paused"}
         </div>
         {simStats && (
-          <div className="text-xs opacity-75 flex gap-3">
+          <div className="text-sm opacity-75 flex gap-3">
             <span>{simStats.totalHospitals} Hospitals</span>
             <span>•</span>
             <span>{simStats.totalPatientsWaiting} Waiting</span>

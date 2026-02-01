@@ -7,6 +7,7 @@ import * as ApiClient from "@/lib/api-client";
 import { DistressEvent, RedirectionDecision } from "@/lib/types";
 import { useRealtime } from "@/app/Components/Context/RealtimeContext";
 import { useSimulation } from "@/app/Components/Context/SimulationContext";
+import { formatPatientId, getShortPatientId } from "@/lib/utils";
 
 interface UnifiedAlert {
     id: string;
@@ -43,7 +44,7 @@ const OperationsAlerts = () => {
                 const mappedRedirections: UnifiedAlert[] = redirections.map((r: RedirectionDecision) => ({
                     id: r.id,
                     type: "REDIRECTION",
-                    title: `Redirection: Patient ${r.patientId?.substring(0, 8)}`,
+                    title: `Redirection: ${formatPatientId(r.patientId)}`,
                     description: `${r.reason}. Priority: ${r.decisionType}`,
                     timestamp: new Date(r.time).getTime(),
                     severity: r.decisionType === "safe" ? "info" : "warning",
@@ -80,7 +81,7 @@ const OperationsAlerts = () => {
                 newAlert = {
                     id: `${event.patientId}-${event.timestamp}`,
                     type: "DISTRESS",
-                    title: `Distress Alert: Patient ${event.patientId?.substring(0, 8)}`,
+                    title: `Distress Alert: ${getShortPatientId(event.patientId)}`,
                     description: `Priority escalated to ${event.newPriority}. Hospital: ${event.hospitalName || event.hospitalId}`,
                     timestamp: event.timestamp || Date.now(),
                     severity: event.newPriority >= 8 ? "critical" : "warning",
@@ -89,7 +90,7 @@ const OperationsAlerts = () => {
                 newAlert = {
                     id: `${event.patientId}-${event.timestamp}`,
                     type: "REDIRECTION",
-                    title: `Redirection: Patient ${event.patientId?.substring(0, 8)}`,
+                    title: `Redirection: ${getShortPatientId(event.patientId)}`,
                     description: `${event.fromHospital} → ${event.toHospital}`,
                     timestamp: event.timestamp || Date.now(),
                     severity: "info",

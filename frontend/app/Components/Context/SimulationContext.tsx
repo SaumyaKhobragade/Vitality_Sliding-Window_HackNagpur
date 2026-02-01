@@ -5,6 +5,7 @@ import { CityStats, Hospital, LogEntry } from "@/lib/types";
 import { useRealtime } from "./RealtimeContext";
 import * as ApiClient from "@/lib/api-client";
 import { SimulationEngine, SimulationEvent, SimulationState } from "@/lib/simulation-engine";
+import { getShortPatientId } from "@/lib/utils";
 import {
   handleSimulationEventPersistence,
   startPeriodicSync,
@@ -60,6 +61,9 @@ const SimulationContext = createContext<SimulationContextType | undefined>(
 export const SimulationProvider = ({ children }: { children: ReactNode }) => {
   const [stats, setStats] = useState<CityStats | null>(null);
   const [hospitals, setHospitals] = useState<Record<string, Hospital>>({});
+  const [redirectionEvents, setRedirectionEvents] = useState<any[]>([]);
+  const [activeTreatments, setActiveTreatments] = useState<Record<string, any[]>>({});
+  const [totalRedirections, setTotalRedirections] = useState(0);
   const { socketService, isConnected } = useRealtime();
   
   // Simulation engine state
@@ -95,15 +99,6 @@ export const SimulationProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const refreshHospitals = async () => {
-    try {
-      const data = await ApiClient.getHospitals();
-      const hospitalMap = data.reduce((acc, h) => ({ ...acc, [h.id]: h }), {});
-      setHospitals(hospitalMap);
-    } catch (error: any) {
-      console.warn("Could not fetch hospitals:", error);
-    }
-  };
 
   const refreshHospital = async (id: string) => {
     try {
@@ -159,26 +154,26 @@ export const SimulationProvider = ({ children }: { children: ReactNode }) => {
         case "DISTRESS_DETECTED":
           addLog(
             "CRITICAL",
-            `🚨 DISTRESS: Patient ${data.patientId?.slice(-8)} escalated from priority ${data.oldPriority} → ${data.newPriority}`
+            `🚨 DISTRESS: ${getShortPatientId(data.patientId)} escalated from priority ${data.oldPriority} → ${data.newPriority}`
           );
           break;
         case "PATIENT_ADMITTED":
           addLog(
             "SUCCESS",
-            `✅ Patient ${data.patientId?.slice(-8)} admitted to ${data.hospitalName} (${data.department})`
+            `✅ ${getShortPatientId(data.patientId)} admitted to ${data.hospitalName} (${data.department})`
           );
           break;
         case "PATIENT_DISCHARGED":
           addLog(
             "INFO",
-            `📤 Patient ${data.patientId?.slice(-8)} discharged from ${data.hospitalName}`
+            `📤 ${getShortPatientId(data.patientId)} discharged from ${data.hospitalName}`
           );
           setProcessedCount((prev) => prev + 1);
           break;
         case "REDIRECTION":
           addLog(
             "INFO",
-            `🔄 Patient ${data.patientId?.slice(-8)} redirected: ${data.fromHospital} → ${data.toHospital}`
+            `🔄 ${getShortPatientId(data.patientId)} redirected: ${data.fromHospital} → ${data.toHospital}`
           );
           break;
         case "STAFF_DROPOUT":
@@ -396,15 +391,15 @@ export const SimulationProvider = ({ children }: { children: ReactNode }) => {
         console.warn(`⚠️ SURGE: ${event.count} patients injected`);
       } else if (event.type === "DISTRESS_DETECTED") {
         console.error(
-          `🚨 DISTRESS: Patient ${event.patientId} at priority ${event.newPriority}`,
+          `🚨 DISTRESS: ${getShortPatientId(event.patientId)} at priority ${event.newPriority}`,
         );
       } else if (event.type === "PATIENT_ADMITTED") {
         console.info(
-          `✅ ADMITTED: Patient ${event.patientId} to ${event.hospitalId}`,
+          `✅ ADMITTED: ${getShortPatientId(event.patientId)} to ${event.hospitalId}`,
         );
       } else if (event.type === "PATIENT_REDIRECTED") {
         console.info(
-          `🔄 REDIRECT: ${event.patientId} moved ${event.sourceHospitalId} -> ${event.targetHospitalId}`,
+          `🔄 REDIRECT: ${getShortPatientId(event.patientId)} moved ${event.sourceHospitalId} -> ${event.targetHospitalId}`,
         );
         setRedirectionEvents((prev) => [event, ...prev].slice(0, 100)); // Keep last 100
         setTotalRedirections((prev) => prev + 1); // Track total count
@@ -444,6 +439,9 @@ export const SimulationProvider = ({ children }: { children: ReactNode }) => {
       value={{
         stats,
         hospitals,
+        redirectionEvents,
+        activeTreatments,
+        totalRedirections,
         isConnected,
         refreshStats,
         refreshHospital,

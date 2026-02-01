@@ -15,9 +15,12 @@ import {
   ChevronDown,
   ChevronUp,
   Flag,
+  Heart,
+  PersonStanding,
+  Stethoscope,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import { RedirectionDecision } from "@/lib/types";
+import { RedirectionDecision, Treatment } from "@/lib/types";
 import {
   Table,
   TableBody,
@@ -35,6 +38,7 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import * as ApiClient from "@/lib/api-client";
+import { formatPatientId, getShortPatientId } from "@/lib/utils";
 import { useSimulation } from "@/app/Components/Context/SimulationContext";
 import { useRealtime } from "@/app/Components/Context/RealtimeContext";
 
@@ -130,8 +134,28 @@ const StatusBadge = ({ status }: { status: string }) => {
   );
 };
 
+// Helper functions for treatments
+const getProgressColor = (color: string) => {
+  const colors: Record<string, string> = {
+    purple: "bg-purple-500",
+    blue: "bg-blue-500",
+    teal: "bg-teal-500",
+  };
+  return colors[color] || "bg-gray-500";
+};
+
+const getIconBgColor = (color: string) => {
+  const colors: Record<string, string> = {
+    purple: "bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-300",
+    blue: "bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300",
+    teal: "bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-300",
+  };
+  return colors[color] || "bg-gray-100 dark:bg-gray-900/30 text-gray-600 dark:text-gray-300";
+};
+
 const DecisionMonitorPage = () => {
   const [decisions, setDecisions] = useState<RedirectionDecision[]>([]);
+  const [treatments, setTreatments] = useState<Treatment[]>([]);
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("any");
@@ -152,10 +176,42 @@ const DecisionMonitorPage = () => {
     }
   }, []);
 
+  const fetchTreatments = useCallback(async () => {
+    try {
+      const treatmentsData = await ApiClient.getTreatments();
+      const mappedTreatments = treatmentsData.map((record) => {
+        let icon = <Stethoscope className="h-5 w-5" />;
+        if (record.type === "Trauma") icon = <PersonStanding className="h-5 w-5" />;
+        if (record.type === "Cardiac") icon = <Heart className="h-5 w-5" />;
+
+        const start = new Date(record.startedAt).getTime();
+        const diff = Math.max(0, Date.now() - start);
+        const minutes = Math.floor(diff / 60000);
+        const elapsed = minutes > 60 ? `${Math.floor(minutes / 60)}h ${minutes % 60}m elapsed` : `${minutes}m elapsed`;
+
+        return {
+          id: record.id,
+          patientId: record.patientId,
+          type: record.type,
+          doctor: record.doctorName,
+          location: record.location,
+          elapsed,
+          progress: record.progress,
+          icon,
+          color: record.colorCode,
+        };
+      });
+      setTreatments(mappedTreatments);
+    } catch (error) {
+      console.error("Failed to load treatments", error);
+    }
+  }, []);
+
   // Initial fetch
   useEffect(() => {
     fetchDecisions();
-  }, [fetchDecisions]);
+    fetchTreatments();
+  }, [fetchDecisions, fetchTreatments]);
 
   // Subscribe to SSE for real-time redirection events
   useEffect(() => {
@@ -164,12 +220,16 @@ const DecisionMonitorPage = () => {
       if (event.type === "REDIRECTION" || event.type === "PATIENT_REDIRECTED") {
         fetchDecisions();
       }
+      // Refetch treatments on patient-related events
+      if (["PATIENT_ADMITTED", "PATIENT_DISCHARGED", "TREATMENT_STARTED", "TREATMENT_COMPLETED"].includes(event.type)) {
+        fetchTreatments();
+      }
     });
 
     return () => {
       socketService.unsubscribe("/topic/events");
     };
-  }, [socketService, fetchDecisions]);
+  }, [socketService, fetchDecisions, fetchTreatments]);
 
   const handleToggleRow = (id: string) => {
     setExpandedRow(expandedRow === id ? null : id);
@@ -250,6 +310,47 @@ const DecisionMonitorPage = () => {
           />
         </div>
 
+        {/* Active Treatments Section */}
+        <div className="rounded-xl border border-border bg-surface-light dark:bg-surface-dark shadow-sm overflow-hidden p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-lg font-bold">Active Treatments City-Wide</h3>
+            <span className="text-xs text-muted-foreground">Updates live</span>
+          </div>
+          <div className="space-y-6">
+            {treatments.length === 0 && (
+              <p className="text-muted-foreground text-sm">No active treatments.</p>
+            )}
+            {treatments.map((treatment) => (
+              <div key={treatment.id} className="group">
+                <div className="mb-2 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className={`h-10 w-10 flex items-center justify-center rounded-full ${getIconBgColor(treatment.color)}`}>
+                      {treatment.icon}
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold">
+                        {getShortPatientId(treatment.patientId)} ({treatment.type})
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {treatment.doctor} · {treatment.location}
+                      </p>
+                    </div>
+                  </div>
+                  <span className="text-xs font-medium text-muted-foreground">
+                    {treatment.elapsed}
+                  </span>
+                </div>
+                <div className="relative h-2 w-full rounded-full bg-accent">
+                  <div
+                    className={`absolute top-0 left-0 h-full rounded-full ${getProgressColor(treatment.color)}`}
+                    style={{ width: `${treatment.progress}%` }}
+                  ></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
         {/* Table with Filters */}
         <div className="flex flex-col rounded-xl border border-border bg-surface-light dark:bg-surface-dark shadow-sm overflow-hidden">
           {/* Search and Filters */}
@@ -316,14 +417,15 @@ const DecisionMonitorPage = () => {
                   <React.Fragment key={decision.id}>
                     {/* Main Row */}
                     <TableRow
-                      className={`${expandedRow === decision.id
+                      onClick={() => handleToggleRow(decision.id)}
+                      className={`cursor-pointer hover:bg-muted/50 ${expandedRow === decision.id
                           ? "bg-primary/5 dark:bg-primary/5 border-l-4 border-l-primary"
                           : ""
                         }`}
                     >
                       <TableCell>
                         <span className="font-mono text-sm text-primary font-medium bg-primary/5 px-2 py-1 rounded">
-                          {decision.patientId.substring(0, 8)}...
+                          {formatPatientId(decision.patientId)}
                         </span>
                       </TableCell>
                       <TableCell>
@@ -354,16 +456,11 @@ const DecisionMonitorPage = () => {
                         <StatusBadge status={decision.status} />
                       </TableCell>
                       <TableCell className="text-center">
-                        <button
-                          onClick={() => handleToggleRow(decision.id)}
-                          className="text-muted-foreground hover:text-primary transition-colors"
-                        >
-                          {expandedRow === decision.id ? (
-                            <ChevronUp className="h-5 w-5" />
-                          ) : (
-                            <ChevronDown className="h-5 w-5" />
-                          )}
-                        </button>
+                        {expandedRow === decision.id ? (
+                          <ChevronUp className="h-5 w-5" />
+                        ) : (
+                          <ChevronDown className="h-5 w-5" />
+                        )}
                       </TableCell>
                     </TableRow>
 
@@ -395,8 +492,11 @@ const DecisionMonitorPage = () => {
                                   ></div>
                                 </div>
                                 <p className="text-xs text-muted-foreground">
-                                  High confidence based on bed availability and
-                                  transport time.
+                                  {decision.confidenceScore >= 80
+                                    ? "High confidence - Optimal bed availability and transport time."
+                                    : decision.confidenceScore >= 60
+                                    ? "Moderate confidence - Acceptable conditions for redirection."
+                                    : "Low confidence - Limited options or constraints present."}
                                 </p>
                               </div>
 

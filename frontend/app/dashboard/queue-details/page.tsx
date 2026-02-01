@@ -24,6 +24,7 @@ import { DataTable } from "@/app/Components/Common/DataTable";
 import { SearchBar } from "@/app/Components/Common/SearchBar";
 import Image from "next/image";
 import { Patient, Treatment, StatCard, TreatmentRecord, Hospital } from "@/lib/types";
+import { formatPatientId, getShortPatientId } from "@/lib/utils";
 import { PatientContextMenu } from "@/app/Components/dashboard/PatientContextMenu";
 import { ConfirmationDialog } from "@/app/Components/dashboard/ConfirmationDialog";
 import { DataTooltip } from "@/app/Components/dashboard/DataTooltip";
@@ -198,7 +199,7 @@ const QueueDetailsContent = () => {
             accessorKey: "id",
             header: "Patient ID",
             cell: ({ row }) => (
-                <span className="font-mono font-medium">{(row.getValue("id") as string).substring(0, 8)}</span>
+                <span className="font-mono font-medium">{formatPatientId(row.getValue("id") as string)}</span>
             ),
         },
         {
@@ -455,7 +456,7 @@ const QueueDetailsContent = () => {
                                             </div>
                                             <div>
                                                 <p className="text-sm font-bold">
-                                                    Patient {treatment.patientId.substring(0,8)} ({treatment.type})
+                                                    {getShortPatientId(treatment.patientId)} ({treatment.type})
                                                 </p>
                                                 <p className="text-xs text-muted-foreground">
                                                     {treatment.doctor} · {treatment.location}
@@ -486,8 +487,8 @@ const QueueDetailsContent = () => {
                 open={confirmDialog.open}
                 onOpenChange={(open) => setConfirmDialog({ ...confirmDialog, open })}
                 title={`Confirm ${confirmDialog.action === "discharge" ? "Discharge" : "Fast-Track"}`}
-                description={`Are you sure you want to ${confirmDialog.action} patient ${confirmDialog.patientId}?`}
-                highlightedText={confirmDialog.patientId}
+                description={`Are you sure you want to ${confirmDialog.action} ${formatPatientId(confirmDialog.patientId)}?`}
+                highlightedText={formatPatientId(confirmDialog.patientId)}
                 impactText="This action will update the patient queue immediately."
                 confirmLabel="Confirm"
                 cancelLabel="Cancel"

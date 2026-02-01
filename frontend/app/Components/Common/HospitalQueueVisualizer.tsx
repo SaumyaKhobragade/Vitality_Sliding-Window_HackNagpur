@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useSimulation } from "../Context/SimulationContext";
 import { motion, AnimatePresence } from "framer-motion";
 import { Activity, User, ArrowRight, Clock } from "lucide-react";
+import { formatPatientId, getShortPatientId } from "@/lib/utils";
 
 const HospitalQueueVisualizer = () => {
   const { hospitals, activeTreatments } = useSimulation();
@@ -143,7 +144,7 @@ const TreatmentLane = ({ treatments }: { treatments: any[] }) => {
               <div className="w-1.5 h-8 bg-green-500 rounded-full"></div>
               <div className="flex-1">
                 <div className="text-xs font-bold text-gray-900 dark:text-white flex justify-between">
-                  <span>{t.patientId.substring(0, 8)}...</span>
+                  <span>{getShortPatientId(t.patientId)}</span>
                   <Activity className="w-3 h-3 text-green-500 animate-pulse" />
                 </div>
                 <div className="text-[10px] text-gray-500 mt-1">
@@ -185,7 +186,7 @@ const PatientCard = ({ patient }: { patient: any }) => {
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between">
           <span className="text-xs font-bold text-gray-700 dark:text-gray-200 truncate">
-            {patient.id}
+            {getShortPatientId(patient.id, patient.displayId)}
           </span>
           <span className="text-[10px] text-gray-400">
             Sev: {patient.baseSeverity}

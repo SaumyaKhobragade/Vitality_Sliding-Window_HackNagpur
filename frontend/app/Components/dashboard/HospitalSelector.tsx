@@ -54,12 +54,6 @@ export function HospitalSelector({
     );
   }, [hospitals, searchQuery]);
 
-  const [mounted, setMounted] = React.useState(false);
-
-  React.useEffect(() => {
-    setMounted(true);
-  }, []);
-
     const handleSelect = (hospital: Hospital) => {
         onSelectHospital(hospital);
         setOpen(false);

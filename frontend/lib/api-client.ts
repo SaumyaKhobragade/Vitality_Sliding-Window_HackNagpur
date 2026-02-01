@@ -140,6 +140,18 @@ export const getDistressEvents = async (): Promise<any[]> => {
   return fetchLocal<any[]>("/api/distress");
 };
 
+export const updateDistressEvent = async (
+  id: string,
+  status: string,
+  resolutionNotes?: string,
+): Promise<any> => {
+  return fetchLocal<any>(`/api/distress/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ status, resolutionNotes }),
+  });
+};
+
 export const getPatientQueue = async (
   hospitalId?: string,
 ): Promise<Patient[]> => {
@@ -171,8 +183,3 @@ export const updatePolicy = async (
 export const getSimulationHistory = async (): Promise<any[]> => {
   return fetchLocal<any[]>("/api/simulation/history");
 };
-
-export const getHospitals = async (): Promise<Hospital[]> => {
-  return fetchJson<Hospital[]>("/hospitals");
-};
-

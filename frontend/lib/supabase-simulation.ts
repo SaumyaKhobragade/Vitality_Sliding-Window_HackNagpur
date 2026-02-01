@@ -6,6 +6,7 @@
 import { createClient } from "@/supabase/client";
 import { Hospital, Patient, CityStats, LogEntry } from "./types";
 import { SimulationEvent } from "./simulation-engine";
+import { formatPatientId, getShortPatientId } from "./utils";
 
 const supabase = createClient();
 
@@ -69,7 +70,7 @@ export async function persistPatient(
   try {
     const patientData = {
       id: patient.id,
-      display_id: `#${patient.id.slice(-8).toUpperCase()}`,
+      display_id: formatPatientId(patient.id),
       hospital_id: hospitalId,
       target_hospital_id: patient.targetHospitalId,
       base_severity: patient.baseSeverity,
@@ -361,7 +362,7 @@ export async function handleSimulationEventPersistence(
       );
       persistSimulationLog(
         "SUCCESS",
-        `Patient ${event.data.patientId?.slice(-8)} admitted to ${event.data.hospitalName}`,
+        `${getShortPatientId(event.data.patientId)} admitted to ${event.data.hospitalName}`,
       );
       break;
 
@@ -369,7 +370,7 @@ export async function handleSimulationEventPersistence(
       updatePatientStatus(event.data.patientId, "Discharged");
       persistSimulationLog(
         "INFO",
-        `Patient ${event.data.patientId?.slice(-8)} discharged from ${event.data.hospitalName}`,
+        `${getShortPatientId(event.data.patientId)} discharged from ${event.data.hospitalName}`,
       );
       break;
 
@@ -377,7 +378,7 @@ export async function handleSimulationEventPersistence(
       persistDistressEvent(event);
       persistSimulationLog(
         "CRITICAL",
-        `DISTRESS: Patient ${event.data.patientId?.slice(-8)} escalated to priority ${event.data.newPriority}`,
+        `DISTRESS: ${getShortPatientId(event.data.patientId)} escalated to priority ${event.data.newPriority}`,
       );
       break;
 
@@ -386,7 +387,7 @@ export async function handleSimulationEventPersistence(
       updatePatientStatus(event.data.patientId, "Redirected");
       persistSimulationLog(
         "WARN",
-        `Patient ${event.data.patientId?.slice(-8)} redirected: ${event.data.fromHospital} → ${event.data.toHospital}`,
+        `${getShortPatientId(event.data.patientId)} redirected: ${event.data.fromHospital} → ${event.data.toHospital}`,
       );
       break;
 

@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useSimulation } from "../Context/SimulationContext";
 import { motion, AnimatePresence } from "framer-motion";
 import * as ApiClient from "@/lib/api-client";
+import { formatPatientId } from "@/lib/utils";
 import {
   Clock,
   Users,
@@ -319,7 +320,7 @@ const QueueDetailsView = () => {
                     className="hover:bg-gray-50 dark:hover:bg-gray-800/30 transition-colors"
                   >
                     <td className="px-6 py-4 text-sm font-medium text-gray-900 dark:text-white">
-                      #{patient.id?.substring(0, 8)}
+                      {formatPatientId(patient.id, patient.displayId)}
                     </td>
                     <td className="px-6 py-4">
                       <SeverityBadge severity={patient.baseSeverity || 1} />
@@ -485,7 +486,7 @@ const TreatmentProgressBar = ({
         <div className="flex items-center gap-3">
           <div className={`w-2 h-2 rounded-full ${bgColor}`} />
           <span className="font-semibold text-sm text-gray-900 dark:text-white">
-            Patient #{treatment.patientId?.substring(0, 8)}
+            Patient {formatPatientId(treatment.patientId, undefined)}
           </span>
           <span className="text-xs text-gray-500 dark:text-gray-400">
             {treatment.department || "General Ward"}

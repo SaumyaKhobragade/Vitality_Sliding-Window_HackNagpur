@@ -1,18 +1,19 @@
 import React from "react";
 
 // Enums
-export type Department = 'NURSE' | 'GENERAL' | 'ICU';
+export type Department = "NURSE" | "GENERAL" | "ICU";
 
 // Patient Model
 export interface Patient {
   id: string;
+  displayId?: string; // Human-readable ID (e.g., "PT-00123")
   baseSeverity: number; // 1-10
   arrivalTime: number; // Timestamp (ms)
   targetHospitalId: string;
   distressScore: number; // AtomicInteger serializes to number
   treating: boolean; // Mapped from isTreating
   dynamicPriority: number; // Calculated field
-  
+
   // Legacy fields (optional for compatibility during migration)
   severity?: number;
   waitTime?: string;
@@ -45,38 +46,38 @@ export interface CityStats {
 }
 
 export interface Treatment {
-    id: string;
-    patientId: string;
-    type: string;
-    doctor: string;
-    location: string;
-    elapsed: string;
-    progress: number;
-    icon: React.ReactNode;
-    color: string;
+  id: string;
+  patientId: string;
+  type: string;
+  doctor: string;
+  location: string;
+  elapsed: string;
+  progress: number;
+  icon: React.ReactNode;
+  color: string;
 }
 
 export interface TreatmentRecord {
-    id: string;
-    patientId: string;
-    hospitalId: string;
-    type: string;
-    doctorName: string;
-    location: string;
-    startedAt: string;
-    progress: number;
-    colorCode: string;
+  id: string;
+  patientId: string;
+  hospitalId: string;
+  type: string;
+  doctorName: string;
+  location: string;
+  startedAt: string;
+  progress: number;
+  colorCode: string;
 }
 
 export interface StatCard {
-    title: string;
-    value: string | number;
-    subtitle?: string;
-    badge?: {
-        text: string;
-        color: string;
-    };
-    content: React.ReactNode;
+  title: string;
+  value: string | number;
+  subtitle?: string;
+  badge?: {
+    text: string;
+    color: string;
+  };
+  content: React.ReactNode;
 }
 
 export interface RedirectionDecision {
@@ -125,13 +126,13 @@ export interface Session {
 export interface DistressEvent {
   id: string;
   hospitalId: string;
-  type: 'COLLAPSE' | 'AGITATION' | 'SEIZURE' | 'PROLONGED' | 'OTHER';
+  type: "COLLAPSE" | "AGITATION" | "SEIZURE" | "PROLONGED" | "OTHER";
   confidenceScore: number;
   severityScore: number;
   locationDetail?: string;
   cameraFeedId?: string;
   detectedAt: string; // ISO string
-  status: 'active' | 'confirmed' | 'dismissed' | 'resolved';
+  status: "active" | "confirmed" | "dismissed" | "resolved";
   queuePositionOriginal?: number;
   queuePositionNew?: number;
   recommendedAction?: string;
@@ -152,4 +153,3 @@ export interface Policy {
   updatedAt: string;
   updatedBy?: string;
 }
-

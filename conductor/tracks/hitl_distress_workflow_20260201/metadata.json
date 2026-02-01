@@ -1,0 +1,8 @@
+{
+  "track_id": "hitl_distress_workflow_20260201",
+  "type": "feature",
+  "status": "new",
+  "created_at": "2026-02-01T07:47:00Z",
+  "updated_at": "2026-02-01T07:47:00Z",
+  "description": "Implement a strict Human-in-the-Loop workflow for distress signals and move triage constants to a database-backed policy engine."
+}

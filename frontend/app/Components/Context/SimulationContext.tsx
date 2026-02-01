@@ -372,7 +372,7 @@ export const SimulationProvider = ({ children }: { children: ReactNode }) => {
     try {
       addLog(
         "WARN",
-        `🌊 Flooding hospitals with patients to trigger redirections...`,
+        ` Flooding hospitals with patients to trigger redirections...`,
       );
       const response = await fetch(
         `http://localhost:9090/api/simulation/flood`,
@@ -387,13 +387,13 @@ export const SimulationProvider = ({ children }: { children: ReactNode }) => {
       );
       const data = await response.json();
       if (data.success) {
-        addLog("INFO", `✅ ${data.message}`);
-        addLog("INFO", `🏥 Flooded: ${data.hospitalsFlooded.join(", ")}`);
+        addLog("INFO", ` ${data.message}`);
+        addLog("INFO", ` Flooded: ${data.hospitalsFlooded.join(", ")}`);
       } else {
         addLog("CRITICAL", `❌ ${data.message}`);
       }
     } catch (err) {
-      addLog("CRITICAL", `❌ Failed to flood hospitals: ${err}`);
+      addLog("CRITICAL", ` Failed to flood hospitals: ${err}`);
     }
   }, [addLog]);
 
@@ -404,7 +404,7 @@ export const SimulationProvider = ({ children }: { children: ReactNode }) => {
 
       if (percent > 0) {
         engineRef.current.triggerStaffDropout(percent);
-        addLog("WARN", `👨‍⚕️ Manual staff dropout triggered: ${percent}%`);
+        addLog("WARN", ` Manual staff dropout triggered: ${percent}%`);
       }
     },
     [isRunning, addLog],
@@ -499,29 +499,29 @@ export const SimulationProvider = ({ children }: { children: ReactNode }) => {
       // You can dispatch events to EventStream component or global state here
       // Example: Add to event log, show toast notifications, etc.
       if (event.type === "SURGE_TRIGGERED") {
-        console.warn(`⚠️ SURGE: ${event.count} patients injected`);
+        console.warn(`SURGE: ${event.count} patients injected`);
         addLog("WARN", `⚡ Surge: ${event.count} patients injected`);
       } else if (event.type === "HOSPITALS_FLOODED") {
-        console.warn(`🌊 FLOODED: ${event.hospitalsFlooded?.join(", ")}`);
+        console.warn(` FLOODED: ${event.hospitalsFlooded?.join(", ")}`);
         addLog(
           "WARN",
-          `🌊 Flooded ${event.hospitalsFlooded?.length || 0} hospitals with ${event.totalPatients} patients`,
+          `Flooded ${event.hospitalsFlooded?.length || 0} hospitals with ${event.totalPatients} patients`,
         );
       } else if (event.type === "DISTRESS_DETECTED") {
         console.error(
-          `🚨 DISTRESS: ${getShortPatientId(event.patientId)} at priority ${event.newPriority}`,
+          ` DISTRESS: ${getShortPatientId(event.patientId)} at priority ${event.newPriority}`,
         );
         addLog(
           "CRITICAL",
-          `🚨 Distress: Patient ${getShortPatientId(event.patientId)} at priority ${event.newPriority}`,
+          ` Distress: Patient ${getShortPatientId(event.patientId)} at priority ${event.newPriority}`,
         );
       } else if (event.type === "PATIENT_ADMITTED") {
         console.info(
-          `✅ ADMITTED: ${getShortPatientId(event.patientId)} to ${event.hospitalId}`,
+          ` ADMITTED: ${getShortPatientId(event.patientId)} to ${event.hospitalId}`,
         );
         addLog(
           "INFO",
-          `✅ Admitted: Patient ${getShortPatientId(event.patientId)} to ${event.hospitalName || event.hospitalId}`,
+          ` Admitted: Patient ${getShortPatientId(event.patientId)} to ${event.hospitalName || event.hospitalId}`,
         );
       } else if (event.type === "PATIENT_REDIRECTED") {
         const sourceName = event.sourceHospitalName || event.sourceHospitalId;
@@ -531,7 +531,7 @@ export const SimulationProvider = ({ children }: { children: ReactNode }) => {
         );
         addLog(
           "SUCCESS",
-          `🔄 Redirected: Patient ${getShortPatientId(event.patientId)} from ${sourceName} → ${targetName}`,
+          ` Redirected: Patient ${getShortPatientId(event.patientId)} from ${sourceName} → ${targetName}`,
         );
         setRedirectionEvents((prev) => [event, ...prev].slice(0, 100)); // Keep last 100
         setTotalRedirections((prev) => prev + 1); // Track total count

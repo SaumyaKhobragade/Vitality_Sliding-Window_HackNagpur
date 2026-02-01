@@ -1,10 +1,11 @@
 package com.example.Vitality.model;
 
+import com.example.Vitality.service.TriagePolicyService;
 import lombok.Data;
 import lombok.Builder;
-import java.time.Instant;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Represents a patient in the triage system.
@@ -28,23 +29,16 @@ public class Patient implements Comparable<Patient> {
     private AtomicInteger distressScore = new AtomicInteger(0);
 
     @Builder.Default
+    private AtomicReference<DistressStatus> distressStatus = new AtomicReference<>(DistressStatus.NONE);
+    
+    @Builder.Default
+    private long distressEventTimestamp = 0;
+
+    @Builder.Default
     private boolean isTreating = false;
-
-    /**
-     * Calculates the dynamic priority score.
-     * Higher score = Higher priority.
-     * Formula: BaseSeverity + (WaitTimeSeconds * 0.1) + DistressScore
-     */
-    // Base Constants
-    private static double AGING_FACTOR = 0.5; // Normal Mode
-
-    public static void setAgingFactor(double factor) {
-        AGING_FACTOR = factor;
-    }
-
-    public static double getAgingFactor() {
-        return AGING_FACTOR;
-    }
+    
+    // Global Policy Service Reference
+    public static TriagePolicyService policyService;
 
     public int getSeverity() {
         return this.baseSeverity;
@@ -55,11 +49,45 @@ public class Patient implements Comparable<Patient> {
             return 999.0; // Treating patients always have max priority visually
         }
 
-        long waitTimeMs = System.currentTimeMillis() - arrivalTime;
+        long waitTimeMs = Math.max(0, System.currentTimeMillis() - arrivalTime);
         double waitTimeMinutes = waitTimeMs / 60000.0;
+        
+        // Fetch Policies (Safe defaults if service not injected yet)
+        double agingFactor = (policyService != null) ? policyService.getAgingFactor() : 0.5;
+        double severityWeight = (policyService != null) ? policyService.getSeverityWeight() : 1.0;
+        boolean agingEnabled = (policyService != null) ? policyService.isAgingEnabled() : true;
+        double distressDecayRate = (policyService != null) ? policyService.getDistressDecay() : 0.5;
+        int provisionalBoost = (policyService != null) ? policyService.getDistressProvisionalBoost() : 50;
+        int confirmedBoost = (policyService != null) ? policyService.getDistressConfirmedBoost() : 100;
+        long timeoutMs = (policyService != null) ? policyService.getDistressProvisionalTimeoutMs() : 120000;
 
-        // Dynamic Formula: Base + (Time * Factor) + Distress
-        return baseSeverity + (waitTimeMinutes * AGING_FACTOR) + distressScore.get();
+        // Calculate Wait Time Component (only if aging enabled)
+        double waitTimeComponent = agingEnabled ? (waitTimeMinutes * agingFactor) : 0.0;
+
+        // Calculate Distress Component with decay
+        double distressComponent = distressScore.get(); // Base manual score
+        
+        DistressStatus status = distressStatus.get();
+        if (status == DistressStatus.PENDING) {
+            // Check timeout
+            long elapsedSinceDistress = System.currentTimeMillis() - distressEventTimestamp;
+            if (elapsedSinceDistress > timeoutMs) {
+                distressStatus.compareAndSet(DistressStatus.PENDING, DistressStatus.EXPIRED);
+                // No boost, expired
+            } else {
+                // Apply provisional boost with decay over time
+                double decayFactor = Math.exp(-distressDecayRate * elapsedSinceDistress / 60000.0);
+                distressComponent += provisionalBoost * decayFactor;
+            }
+        } else if (status == DistressStatus.CONFIRMED) {
+            // Apply confirmed boost with decay
+            long elapsedSinceDistress = System.currentTimeMillis() - distressEventTimestamp;
+            double decayFactor = Math.exp(-distressDecayRate * elapsedSinceDistress / 60000.0);
+            distressComponent += confirmedBoost * decayFactor;
+        }
+
+        // Dynamic Formula: (Severity * Weight) + (Time * Factor) + Distress
+        return (baseSeverity * severityWeight) + waitTimeComponent + distressComponent;
     }
 
     @Override
@@ -75,5 +103,13 @@ public class Patient implements Comparable<Patient> {
             return 20000;
         }
         return 10000;
+    }
+    
+    // Helper to update distress
+    public void updateDistress(DistressStatus newStatus) {
+        this.distressStatus.set(newStatus);
+        if (newStatus == DistressStatus.PENDING) {
+            this.distressEventTimestamp = System.currentTimeMillis();
+        }
     }
 }

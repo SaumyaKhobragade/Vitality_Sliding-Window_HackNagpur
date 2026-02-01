@@ -385,15 +385,22 @@ export async function updateDistressEventStatus(
   id: string,
   status: string,
   resolutionNotes?: string,
+  resolvedBy?: string,
 ): Promise<DistressEvent | null> {
   const supabase = await createClient();
+  
+  const updateData: any = {
+    status: status.toLowerCase(),
+    resolution_notes: resolutionNotes,
+  };
+  
+  if (resolvedBy) {
+    updateData.resolved_by = resolvedBy;
+  }
+  
   const { data, error } = await supabase
     .from("distress_events")
-    .update({
-      status,
-      resolution_notes: resolutionNotes,
-      // resolved_by would be set from the current user context
-    })
+    .update(updateData)
     .eq("id", id)
     .select()
     .single();

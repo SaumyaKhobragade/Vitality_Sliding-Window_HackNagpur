@@ -10,6 +10,9 @@
 - **Authentication & Backend:** [Supabase](https://supabase.com/) (Auth, Database, Realtime)
 - **Icons:** [Lucide React](https://lucide.dev/)
 - **Tables:** [TanStack Table](https://tanstack.com/table/v8)
+- **State Management:** [Zustand](https://zustand-demo.pmnd.rs/) (Simulation and Event Stores)
+
+## Backend (Simulation)
 - **Utilities:** \clsx\, \	ailwind-merge\, \class-variance-authority\
 
 ## Development Tools

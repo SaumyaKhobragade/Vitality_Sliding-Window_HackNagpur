@@ -1,6 +1,7 @@
 package com.example.Vitality.service;
 
 import com.example.Vitality.model.Patient;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.Deque;
@@ -16,6 +17,13 @@ public class SurgeDetectorService {
     private final Deque<Long> arrivalTimestamps = new ConcurrentLinkedDeque<>();
 
     private volatile boolean surgeActive = false;
+    
+    private final TriagePolicyService triagePolicyService;
+
+    @Autowired
+    public SurgeDetectorService(TriagePolicyService triagePolicyService) {
+        this.triagePolicyService = triagePolicyService;
+    }
 
     public void recordArrival() {
         long now = System.currentTimeMillis();
@@ -39,11 +47,11 @@ public class SurgeDetectorService {
             if (surgeActive) {
                 System.out.println(">>> 🚨 SURGE DETECTED! (Rate: " + currentRate
                         + "/min) >>> Switching to SURVIVAL MODE (Time Weight: 1.0)");
-                Patient.setAgingFactor(1.0); // Boost wait time importance
+                triagePolicyService.updatePolicy("aging_factor", 1.0); // Boost wait time importance
             } else {
                 System.out.println(">>> 🟢 SURGE ENDED. (Rate: " + currentRate
                         + "/min) >>> Returning to NORMAL MODE (Time Weight: 0.5)");
-                Patient.setAgingFactor(0.5); // Normal balance
+                triagePolicyService.updatePolicy("aging_factor", 0.5); // Normal balance
             }
         }
     }
@@ -61,7 +69,7 @@ public class SurgeDetectorService {
     public void reset() {
         arrivalTimestamps.clear();
         surgeActive = false;
-        Patient.setAgingFactor(0.5); // Reset Factor
+        triagePolicyService.updatePolicy("aging_factor", 0.5); // Reset Factor
         System.out.println("Surge Detector Reset.");
     }
 }

@@ -132,12 +132,24 @@ export interface DistressEvent {
   locationDetail?: string;
   cameraFeedId?: string;
   detectedAt: string; // ISO string
-  status: "active" | "confirmed" | "dismissed" | "resolved";
+  status: "PENDING" | "CONFIRMED" | "DISMISSED" | "EXPIRED" | "resolved";
   queuePositionOriginal?: number;
   queuePositionNew?: number;
   recommendedAction?: string;
   resolutionNotes?: string;
   resolvedBy?: string;
+  nurseId?: string;
+  justificationNote?: string;
+  priorityDelta?: number;
+  expiresAt?: string;
+}
+
+export interface TriagePolicy {
+  id: string;
+  key: string;
+  value: string;
+  description?: string;
+  updatedAt: string;
 }
 
 export interface Policy {

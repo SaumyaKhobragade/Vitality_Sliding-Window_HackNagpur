@@ -7,9 +7,9 @@ export async function PATCH(
 ) {
   try {
     const body = await request.json();
-    const { status, resolutionNotes } = body;
+    const { status, resolutionNotes, resolvedBy, clinicalNotes, priorityDelta } = body;
 
-    if (!status || !["confirmed", "dismissed", "resolved"].includes(status)) {
+    if (!status || !["CONFIRMED", "DISMISSED", "RESOLVED", "confirmed", "dismissed", "resolved"].includes(status)) {
       return NextResponse.json(
         { error: "Invalid status value" },
         { status: 400 },
@@ -20,6 +20,7 @@ export async function PATCH(
       params.id,
       status,
       resolutionNotes,
+      resolvedBy,
     );
 
     if (!result) {

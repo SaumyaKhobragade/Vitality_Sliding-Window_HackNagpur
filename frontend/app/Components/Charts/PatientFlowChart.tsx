@@ -51,15 +51,28 @@ const PatientFlowChart = () => {
         // Initial fetch from API only if no simulation is running
         if (!isRunning && !simStats) {
             ApiClient.getAnalytics().then(data => {
-                const mapped = data.map(r => ({
+                // Filter data from last hour only
+                const oneHourAgo = Date.now() - (60 * 60 * 1000);
+                const recentData = data.filter(r => {
+                    const timestamp = new Date(r.timestamp).getTime();
+                    return timestamp > oneHourAgo;
+                });
+                const mapped = recentData.map(r => ({
                     time: r.timestamp,
                     waiting: r.waiting,
                     active: r.activePatients
                 }));
-                setHistory(mapped);
+                setHistory(mapped.slice(-20)); // Keep only last 20 points
             }).catch(err => console.error("Failed to load analytics history", err));
         }
     }, []);
+
+    useEffect(() => {
+        // Clear history when simulation starts
+        if (isRunning && simStats) {
+            setHistory([]);
+        }
+    }, [isRunning]);
 
     useEffect(() => {
         // Use simStats when simulation is running, otherwise use stats (from backend)
@@ -71,7 +84,7 @@ const PatientFlowChart = () => {
         if (now - lastUpdate < 1000) return;
         setLastUpdate(now);
 
-        const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         
         setHistory(prev => {
             const newPoint = { 
@@ -91,6 +104,13 @@ const PatientFlowChart = () => {
         setRefreshing(false);
     };
 
+    // Calculate dynamic Y-axis range
+    const allValues = history.flatMap(d => [d.waiting, d.active]);
+    const maxValue = Math.max(...allValues, 10);
+    const minValue = Math.min(...allValues, 0);
+    const range = maxValue - minValue;
+    const padding = Math.max(range * 0.2, 5); // 20% padding or minimum 5
+    
     const chartData = {
         labels: history.map(d => d.time),
         datasets: [
@@ -99,6 +119,8 @@ const PatientFlowChart = () => {
                 data: history.map(d => d.waiting),
                 borderColor: "#3b82f6",
                 borderWidth: 3,
+                tension: 0.4, // Smooth curves
+                fill: false,
             },
             {
                 label: "Active Doctors",
@@ -106,6 +128,8 @@ const PatientFlowChart = () => {
                 borderColor: "#10b981",
                 borderWidth: 3,
                 borderDash: [5, 5],
+                tension: 0.4, // Smooth curves
+                fill: false,
             },
         ],
     };
@@ -126,7 +150,7 @@ const PatientFlowChart = () => {
                         </p>
                     </div>
                 </div>
-                <div className="relative h-64 w-full flex items-center justify-center">
+                <div className="relative h-96 w-full flex items-center justify-center">
                     <div className="text-gray-400">Loading chart...</div>
                 </div>
             </div>
@@ -172,7 +196,7 @@ const PatientFlowChart = () => {
                     </button>
                 </div>
             </div>
-            <div className="relative h-64 w-full">
+            <div className="relative h-96 w-full">
                 <div className="ml-0 h-full flex items-end justify-between relative">
                     <Chart
                         type="line"
@@ -180,9 +204,51 @@ const PatientFlowChart = () => {
                         options={{
                             maintainAspectRatio: false,
                             responsive: true,
+                            interaction: {
+                                mode: 'index',
+                                intersect: false,
+                            },
+                            plugins: {
+                                legend: {
+                                    display: false
+                                },
+                                tooltip: {
+                                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                                    padding: 12,
+                                    titleColor: '#fff',
+                                    bodyColor: '#fff',
+                                    borderColor: 'rgba(255, 255, 255, 0.1)',
+                                    borderWidth: 1,
+                                }
+                            },
                             scales: {
+                                x: {
+                                    ticks: {
+                                        maxRotation: 45,
+                                        minRotation: 45,
+                                        autoSkip: true,
+                                        maxTicksLimit: 8,
+                                        font: {
+                                            size: 10
+                                        }
+                                    },
+                                    grid: {
+                                        display: false
+                                    }
+                                },
                                 y: {
-                                    beginAtZero: true
+                                    beginAtZero: false,
+                                    suggestedMin: Math.max(0, minValue - padding),
+                                    suggestedMax: maxValue + padding,
+                                    ticks: {
+                                        stepSize: Math.ceil(range / 5) || 10,
+                                        font: {
+                                            size: 11
+                                        }
+                                    },
+                                    grid: {
+                                        color: 'rgba(0, 0, 0, 0.05)'
+                                    }
                                 }
                             }
                         }}

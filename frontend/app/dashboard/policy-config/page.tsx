@@ -23,18 +23,26 @@ import { SuccessToast } from "@/app/Components/dashboard/SuccessToast";
 import { AlertBanner } from "@/app/Components/dashboard/AlertBanner";
 
 import * as ApiClient from "@/lib/api-client";
-import { Policy } from "@/lib/types";
+import { Policy, TriagePolicy } from "@/lib/types";
 
 const PolicyConfig = () => {
   // State for configuration
   const [policies, setPolicies] = useState<Policy[]>([]);
   const [selectedPolicyId, setSelectedPolicyId] = useState<string | null>(null);
   
+  // New Triage Policies (HITL)
+  const [triagePolicies, setTriagePolicies] = useState<TriagePolicy[]>([]);
+  
   // Form State
   const [severityWeight, setSeverityWeight] = useState(0.85);
   const [agingRate, setAgingRate] = useState(15); // Minutes
   const [enableAging, setEnableAging] = useState(true);
   const [distressDecay, setDistressDecay] = useState(0.5);
+
+  // HITL Form State
+  const [provisionalBoost, setProvisionalBoost] = useState(50);
+  const [confirmedBoost, setConfirmedBoost] = useState(100);
+  const [timeout, setTimeout] = useState(120);
 
   // State for dialogs and toasts
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
@@ -44,6 +52,7 @@ const PolicyConfig = () => {
 
   useEffect(() => {
       loadPolicies();
+      loadTriagePolicies();
   }, []);
 
   const loadPolicies = async () => {
@@ -58,6 +67,24 @@ const PolicyConfig = () => {
       } catch (error) {
           console.error("Failed to load policies", error);
       }
+  };
+
+  const loadTriagePolicies = async () => {
+    try {
+      const data = await ApiClient.getTriagePolicies();
+      setTriagePolicies(data);
+      
+      const prov = data.find(p => p.key === 'distress_provisional_boost');
+      if (prov) setProvisionalBoost(parseInt(prov.value));
+      
+      const conf = data.find(p => p.key === 'distress_confirmed_boost');
+      if (conf) setConfirmedBoost(parseInt(conf.value));
+      
+      const time = data.find(p => p.key === 'distress_provisional_timeout');
+      if (time) setTimeout(parseInt(time.value));
+    } catch (error) {
+      console.error("Failed to load triage policies", error);
+    }
   };
 
   const selectPolicy = (policy: Policy) => {
@@ -85,24 +112,42 @@ const PolicyConfig = () => {
   };
 
   const handleConfirmSave = async () => {
-    if (!selectedPolicyId) return;
-    
     setShowConfirmDialog(false);
     setShowLoadingDialog(true);
     
     try {
-        await ApiClient.updatePolicy({
-            id: selectedPolicyId,
-            severityWeight,
-            agingRateMinutes: agingRate,
-            enableAging,
-            distressDecay,
-            isAlertMode: showCrisisAlert // Persist alert mode if toggled? Or assume it's static per policy type?
-            // Note: isActive is not toggled by this form save, likely separate action. 
-            // But we can assume saving makes it active or keeps it active.
-        });
+        // 1. Update Standard Policies
+        if (selectedPolicyId) {
+            await ApiClient.updatePolicy({
+                id: selectedPolicyId,
+                severityWeight,
+                agingRateMinutes: agingRate,
+                enableAging,
+                distressDecay,
+                isAlertMode: showCrisisAlert
+            });
+        }
+
+        // 2. Update Triage Policies (Supabase)
+        await Promise.all([
+          ApiClient.updateTriagePolicy('distress_provisional_boost', provisionalBoost.toString()),
+          ApiClient.updateTriagePolicy('distress_confirmed_boost', confirmedBoost.toString()),
+          ApiClient.updateTriagePolicy('distress_provisional_timeout', timeout.toString()),
+          ApiClient.updateTriagePolicy('severity_weight', (severityWeight * 10).toString()),
+          ApiClient.updateTriagePolicy('aging_factor', (agingRate / 10).toString()),
+        ]);
+
+        // 3. Sync to Simulation (Java Backend)
+        await Promise.all([
+          ApiClient.syncPolicyToSimulation('distress_provisional_boost', provisionalBoost),
+          ApiClient.syncPolicyToSimulation('distress_confirmed_boost', confirmedBoost),
+          ApiClient.syncPolicyToSimulation('distress_provisional_timeout', timeout),
+          ApiClient.syncPolicyToSimulation('severity_weight', severityWeight * 10),
+          ApiClient.syncPolicyToSimulation('aging_factor', agingRate / 10),
+        ]);
         
-        await loadPolicies(); // Refresh
+        await loadPolicies();
+        await loadTriagePolicies();
         
         setShowLoadingDialog(false);
         setShowToast(true);
@@ -110,7 +155,6 @@ const PolicyConfig = () => {
     } catch (error) {
         console.error("Failed to save policy", error);
         setShowLoadingDialog(false);
-        // Add error toast handling here if needed
     }
   };
 
@@ -119,6 +163,7 @@ const PolicyConfig = () => {
         const original = policies.find(p => p.id === selectedPolicyId);
         if (original) selectPolicy(original);
     }
+    loadTriagePolicies();
   };
 
   return (
@@ -126,15 +171,6 @@ const PolicyConfig = () => {
       {/* Header */}
       <div className="mb-8 flex flex-col justify-between gap-4 md:flex-row md:items-start">
         <div>
-          <div className="mb-2 flex items-center gap-2 text-sm text-neutral-text-secondary">
-            <span>Admin</span>
-            <span>/</span>
-            <span>Configuration</span>
-            <span>/</span>
-            <span className="font-semibold text-neutral-text-primary">
-              Policies
-            </span>
-          </div>
           <h1 className="text-3xl font-bold text-neutral-text-primary">
             Triage Policy Configuration
           </h1>
@@ -311,52 +347,109 @@ const PolicyConfig = () => {
             </div>
           </Card>
 
-          {/* Distress Signals Card */}
+          {/* Distress Signals & HITL Card */}
           <Card className="border-none shadow-sm bg-white p-6 md:p-8 py-0 gap-0">
             <div className="pt-6 md:pt-8 flex items-center justify-between mb-8">
               <div className="flex items-center gap-2">
-                <Activity className="text-neutral-text-secondary h-5 w-5" />
+                <ShieldAlert className="text-amber-500 h-5 w-5" />
                 <h2 className="text-lg font-bold text-neutral-text-primary">
-                  Distress Signals
+                  HITL & Distress Workflow
                 </h2>
               </div>
               <Badge
                 variant="secondary"
-                className="bg-purple-50 text-purple-600 hover:bg-purple-100 uppercase tracking-wider font-semibold text-[10px] px-2 py-0.5 rounded-sm"
+                className="bg-amber-50 text-amber-600 hover:bg-amber-100 uppercase tracking-wider font-semibold text-[10px] px-2 py-0.5 rounded-sm"
               >
-                Vitals
+                Supervised
               </Badge>
             </div>
 
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <label className="text-sm font-medium text-neutral-text-primary">
-                  Distress Decay Rate
-                </label>
-                <span className="text-lg font-bold text-brand-primary">
-                  {distressDecay < 0.3
-                    ? "Slow"
-                    : distressDecay > 0.7
-                      ? "Fast"
-                      : "Medium"}{" "}
-                  ({distressDecay})
-                </span>
+            <div className="space-y-10">
+              {/* Provisional Boost Slider */}
+              <div className="space-y-4">
+                <div className="flex justify-between items-center bg-transparent">
+                  <label className="text-sm font-medium text-neutral-text-primary">
+                    Provisional Distress Boost
+                  </label>
+                  <span className="text-base font-bold text-amber-500">
+                    +{provisionalBoost}
+                  </span>
+                </div>
+                <CustomSlider
+                  value={provisionalBoost}
+                  min={0}
+                  max={100}
+                  step={5}
+                  onChange={setProvisionalBoost}
+                />
+                <p className="text-xs text-neutral-text-secondary">
+                  Priority added immediately while waiting for nurse confirmation.
+                </p>
               </div>
-              <CustomSlider
-                value={distressDecay}
-                min={0.1}
-                max={1.0}
-                step={0.1}
-                onChange={setDistressDecay}
-              />
-              <div className="flex justify-between text-[10px] uppercase font-bold text-neutral-text-muted tracking-wider">
-                <span>Slow</span>
-                <span>Fast</span>
+
+              {/* Confirmed Boost Slider */}
+              <div className="space-y-4">
+                <div className="flex justify-between items-center bg-transparent">
+                  <label className="text-sm font-medium text-neutral-text-primary">
+                    Confirmed Distress Boost
+                  </label>
+                  <span className="text-base font-bold text-green-600">
+                    +{confirmedBoost}
+                  </span>
+                </div>
+                <CustomSlider
+                  value={confirmedBoost}
+                  min={0}
+                  max={200}
+                  step={10}
+                  onChange={setConfirmedBoost}
+                />
+                <p className="text-xs text-neutral-text-secondary">
+                  Total priority boost applied once the nurse confirms the signal.
+                </p>
               </div>
-              <p className="text-xs text-neutral-text-secondary pt-1">
-                Rate at which transient vital sign anomalies normalize in the
-                calculation model.
-              </p>
+
+              {/* Timeout Slider */}
+              <div className="space-y-4">
+                <div className="flex justify-between items-center bg-transparent">
+                  <label className="text-sm font-medium text-neutral-text-primary">
+                    Confirmation Timeout (Seconds)
+                  </label>
+                  <span className="text-base font-bold text-neutral-text-primary">
+                    {timeout}s
+                  </span>
+                </div>
+                <CustomSlider
+                  value={timeout}
+                  min={30}
+                  max={600}
+                  step={30}
+                  onChange={setTimeout}
+                />
+                <p className="text-xs text-neutral-text-secondary">
+                  If not confirmed within this time, the provisional boost is automatically rolled back.
+                </p>
+              </div>
+
+              <div className="h-px bg-neutral-border border-t border-dashed w-full my-4" />
+
+              <div className="space-y-4 pb-8">
+                <div className="flex justify-between items-center">
+                  <label className="text-sm font-medium text-neutral-text-primary">
+                    Distress Decay Rate
+                  </label>
+                  <span className="text-lg font-bold text-brand-primary">
+                    {distressDecay}
+                  </span>
+                </div>
+                <CustomSlider
+                  value={distressDecay}
+                  min={0.1}
+                  max={1.0}
+                  step={0.1}
+                  onChange={setDistressDecay}
+                />
+              </div>
             </div>
           </Card>
 
@@ -432,6 +525,25 @@ const PolicyConfig = () => {
         onConfirm={handleConfirmSave}
         variant="warning"
       />
+
+      {/* Loading Dialog */}
+      <LoadingDialog
+        open={showLoadingDialog}
+        title="Saving Policy"
+        description="Please wait while we save your policy changes..."
+      />
+
+      {/* Success Toast */}
+      {showToast && (
+        <div className="fixed top-4 right-4 z-50">
+          <SuccessToast
+            title="Policy Saved Successfully"
+            description="Your changes have been applied to all connected triage nodes."
+            onClose={() => setShowToast(false)}
+            variant="success"
+          />
+        </div>
+      )}
     </div>
   );
 };

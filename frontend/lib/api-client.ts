@@ -6,6 +6,7 @@ import {
   RedirectionDecision,
   PatientFlowRecord,
   TreatmentRecord,
+  TriagePolicy,
 } from "./types";
 
 const SIMULATION_API = "http://localhost:9090/api/simulation";
@@ -77,6 +78,16 @@ export const triggerSurge = async (count: number): Promise<string> => {
   });
 };
 
+export const syncPolicyToSimulation = async (
+  key: string,
+  value: number,
+): Promise<string> => {
+  return fetchSimulation<string>("/policy/sync", {
+    method: "POST",
+    body: JSON.stringify({ key, value }),
+  });
+};
+
 export interface SimulationStats {
   totalHospitals: number;
   totalPatients: number;
@@ -144,11 +155,38 @@ export const updateDistressEvent = async (
   id: string,
   status: string,
   resolutionNotes?: string,
+  resolvedBy?: string,
+  clinicalNotes?: string,
+  priorityDelta?: number,
 ): Promise<any> => {
   return fetchLocal<any>(`/api/distress/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ status, resolutionNotes }),
+    body: JSON.stringify({ 
+      status, 
+      resolutionNotes,
+      resolvedBy,
+      clinicalNotes,
+      priorityDelta,
+    }),
+  });
+};
+
+export const confirmDistressSimulation = async (
+  patientId: string,
+): Promise<string> => {
+  return fetchSimulation<string>("/distress/confirm", {
+    method: "POST",
+    body: JSON.stringify({ patientId }),
+  });
+};
+
+export const dismissDistressSimulation = async (
+  patientId: string,
+): Promise<string> => {
+  return fetchSimulation<string>("/distress/dismiss", {
+    method: "POST",
+    body: JSON.stringify({ patientId }),
   });
 };
 
@@ -168,6 +206,21 @@ export const getTreatments = async (
 
 export const getPolicies = async (): Promise<Policy[]> => {
   return fetchLocal<Policy[]>("/api/policies");
+};
+
+export const getTriagePolicies = async (): Promise<TriagePolicy[]> => {
+  return fetchLocal<TriagePolicy[]>("/api/policies/triage");
+};
+
+export const updateTriagePolicy = async (
+  key: string,
+  value: string,
+): Promise<TriagePolicy> => {
+  return fetchLocal<TriagePolicy>("/api/policies/triage", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ key, value }),
+  });
 };
 
 export const updatePolicy = async (

@@ -60,6 +60,7 @@ const QueueDetailsView = () => {
       ...p,
       department: dept,
       waitTime: Date.now() - (p.arrivalTime || Date.now()),
+      distressStatus: p.distressStatus,
     })),
   );
 
@@ -310,32 +311,56 @@ const QueueDetailsView = () => {
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
               <AnimatePresence>
-                {filteredPatients.slice(0, 10).map((patient, index) => (
-                  <motion.tr
-                    key={patient.id}
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 10 }}
-                    transition={{ delay: index * 0.02 }}
-                    className="hover:bg-gray-50 dark:hover:bg-gray-800/30 transition-colors"
-                  >
-                    <td className="px-6 py-4 text-sm font-medium text-gray-900 dark:text-white">
-                      {formatPatientId(patient.id, patient.displayId)}
-                    </td>
-                    <td className="px-6 py-4">
-                      <SeverityBadge severity={patient.baseSeverity || 1} />
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">
-                      {Math.floor(patient.waitTime / 60000)} min
-                    </td>
-                    <td className="px-6 py-4">
-                      <StatusBadge status={patient.department} />
-                    </td>
-                    <td className="px-6 py-4 text-sm font-semibold text-gray-900 dark:text-white">
-                      {(patient.baseSeverity * 10 || 10).toFixed(1)}
-                    </td>
-                  </motion.tr>
-                ))}
+                {filteredPatients.slice(0, 10).map((patient, index) => {
+                  const isPending = patient.distressStatus === "PENDING";
+                  const isConfirmed = patient.distressStatus === "CONFIRMED";
+
+                  return (
+                    <motion.tr
+                      key={patient.id}
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{
+                        opacity: 1,
+                        y: 0,
+                        backgroundColor: isPending
+                          ? "rgba(245, 158, 11, 0.05)"
+                          : isConfirmed
+                            ? "rgba(239, 68, 68, 0.05)"
+                            : "transparent",
+                      }}
+                      exit={{ opacity: 0, y: 10 }}
+                      transition={{ delay: index * 0.02 }}
+                      className={`hover:bg-gray-50 dark:hover:bg-gray-800/30 transition-colors ${
+                        isPending ? "border-l-2 border-l-amber-500" : isConfirmed ? "border-l-2 border-l-red-500" : ""
+                      }`}
+                    >
+                      <td className="px-6 py-4 text-sm font-medium text-gray-900 dark:text-white flex items-center gap-2">
+                        {formatPatientId(patient.id, patient.displayId)}
+                        {isPending && (
+                          <span
+                            className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"
+                            title="Distress Pending Confirmation"
+                          />
+                        )}
+                        {isConfirmed && (
+                          <Activity className="w-3 h-3 text-red-500" title="Distress Confirmed" />
+                        )}
+                      </td>
+                      <td className="px-6 py-4">
+                        <SeverityBadge severity={patient.baseSeverity || 1} />
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">
+                        {Math.floor(patient.waitTime / 60000)} min
+                      </td>
+                      <td className="px-6 py-4">
+                        <StatusBadge status={patient.department} />
+                      </td>
+                      <td className="px-6 py-4 text-sm font-semibold text-gray-900 dark:text-white">
+                        {Math.round(patient.dynamicPriority)}
+                      </td>
+                    </motion.tr>
+                  );
+                })}
               </AnimatePresence>
             </tbody>
           </table>

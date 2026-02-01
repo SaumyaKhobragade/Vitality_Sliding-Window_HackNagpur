@@ -1,14 +1,25 @@
 "use client";
 
 import React from "react";
-import { Play, Pause, Activity } from "lucide-react";
+import { Play, Pause, Activity, Square } from "lucide-react";
 import { useSimulation } from "../Context/SimulationContext";
 import { useRouter, usePathname } from "next/navigation";
 
 export function SimulationStatusBadge() {
-  const { isRunning, simStats } = useSimulation();
+  const { isRunning, simStats, handleRunToggle } = useSimulation();
   const router = useRouter();
   const pathname = usePathname();
+
+  const handleStop = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isRunning) {
+      await handleRunToggle();
+    }
+  };
+
+  const handleBadgeClick = () => {
+    router.push("/dashboard/simulation");
+  };
 
   // Don't show on simulation page itself
   if (pathname === "/dashboard/simulation") return null;
@@ -17,9 +28,9 @@ export function SimulationStatusBadge() {
   if (!isRunning && !simStats) return null;
 
   return (
-    <button
-      onClick={() => router.push("/dashboard/simulation")}
-      className="fixed bottom-6 right-6 z-50 flex items-center gap-3 bg-slate-800 text-white px-5 py-3 rounded-full shadow-2xl hover:shadow-3xl transition-all duration-300 hover:scale-105 group"
+    <div
+      onClick={handleBadgeClick}
+      className="fixed bottom-6 right-6 z-50 flex items-center gap-3 bg-slate-800 text-white px-5 py-3 rounded-full shadow-2xl hover:shadow-3xl transition-all duration-300 hover:scale-105 group cursor-pointer"
     >
       <div className="relative">
         {isRunning ? (
@@ -46,9 +57,18 @@ export function SimulationStatusBadge() {
           </div>
         )}
       </div>
+      {isRunning && (
+        <button
+          onClick={handleStop}
+          className="ml-2 p-2 rounded-lg hover:bg-red-600 bg-red-500 transition-colors"
+          title="Stop Simulation"
+        >
+          <Square className="w-4 h-4 fill-current" />
+        </button>
+      )}
       <div className="ml-1 opacity-75 group-hover:opacity-100 group-hover:translate-x-1 transition-all">
         →
       </div>
-    </button>
+    </div>
   );
 }

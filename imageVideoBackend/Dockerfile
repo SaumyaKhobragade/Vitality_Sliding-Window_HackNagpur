@@ -15,7 +15,19 @@ WORKDIR /app
 
 # Copy requirements and install Python dependencies
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+
+# Install PyTorch CPU-only version (much smaller than CUDA version)
+RUN pip install --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cpu
+
+# Install other dependencies
+RUN pip install --no-cache-dir \
+    opencv-python-headless>=4.8.0 \
+    numpy>=1.24.0 \
+    fastapi>=0.109.0 \
+    uvicorn[standard]>=0.27.0 \
+    python-multipart>=0.0.6 \
+    pydantic>=2.5.0 \
+    pillow>=10.0.0
 
 # Copy application code
 COPY . .

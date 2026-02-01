@@ -366,7 +366,7 @@ export const SimulationProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     // Subscribe to city-wide statistics updates (only when simulation is NOT running)
-    const statsUnsubscribe = socketService.subscribe("/topic/stats", (newStats: CityStats) => {
+    socketService.subscribe("/topic/stats", (newStats: CityStats) => {
       // Use ref to get current value, not captured value
       if (!isRunningRef.current) {
         setStats(newStats);
@@ -374,7 +374,7 @@ export const SimulationProvider = ({ children }: { children: ReactNode }) => {
     });
 
     // Subscribe to individual hospital updates (only when simulation is NOT running)
-    const hospitalUnsubscribe = socketService.subscribe("/topic/hospital", (newHospital: Hospital) => {
+    socketService.subscribe("/topic/hospital", (newHospital: Hospital) => {
       // Use ref to get current value, not captured value
       if (!isRunningRef.current) {
         setHospitals((prev) => ({ ...prev, [newHospital.id]: newHospital }));
@@ -382,7 +382,7 @@ export const SimulationProvider = ({ children }: { children: ReactNode }) => {
     });
 
     // Subscribe to real-time system events (patient admissions, surges, distress, etc.)
-    const eventsUnsubscribe = socketService.subscribe("/topic/events", (event: any) => {
+    socketService.subscribe("/topic/events", (event: any) => {
       console.log("🔔 Real-time event received:", event);
 
       // You can dispatch events to EventStream component or global state here
@@ -428,9 +428,9 @@ export const SimulationProvider = ({ children }: { children: ReactNode }) => {
 
     return () => {
       // Clean up subscriptions when component unmounts
-      if (typeof statsUnsubscribe === 'function') statsUnsubscribe();
-      if (typeof hospitalUnsubscribe === 'function') hospitalUnsubscribe();
-      if (typeof eventsUnsubscribe === 'function') eventsUnsubscribe();
+      socketService.unsubscribe("/topic/stats");
+      socketService.unsubscribe("/topic/hospital");
+      socketService.unsubscribe("/topic/events");
     };
   }, [socketService]);
 

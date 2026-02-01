@@ -28,7 +28,7 @@ const HospitalStatusList = () => {
         fetchHospitals();
 
         // Subscribe to backend hospital updates only
-        const unsubscribe = socketService.subscribe("/topic/hospital", (newHospital: Hospital) => {
+        socketService.subscribe("/topic/hospital", (newHospital: Hospital) => {
             setHospitals((prev) => {
                 const index = prev.findIndex(h => h.id === newHospital.id);
                 if (index >= 0) {
@@ -42,7 +42,7 @@ const HospitalStatusList = () => {
         });
 
         return () => {
-            if (typeof unsubscribe === 'function') unsubscribe();
+            socketService.unsubscribe("/topic/hospital");
         };
     }, [socketService]);
 

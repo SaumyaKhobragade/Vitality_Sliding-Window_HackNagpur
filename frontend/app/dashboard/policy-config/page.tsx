@@ -42,7 +42,7 @@ const PolicyConfig = () => {
   // HITL Form State
   const [provisionalBoost, setProvisionalBoost] = useState(50);
   const [confirmedBoost, setConfirmedBoost] = useState(100);
-  const [timeout, setTimeout] = useState(120);
+  const [timeout, setTimeoutDuration] = useState(120);
 
   // State for dialogs and toasts
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
@@ -81,7 +81,7 @@ const PolicyConfig = () => {
       if (conf) setConfirmedBoost(parseInt(conf.value));
       
       const time = data.find(p => p.key === 'distress_provisional_timeout');
-      if (time) setTimeout(parseInt(time.value));
+      if (time) setTimeoutDuration(parseInt(time.value));
     } catch (error) {
       console.error("Failed to load triage policies", error);
     }
@@ -151,7 +151,7 @@ const PolicyConfig = () => {
         
         setShowLoadingDialog(false);
         setShowToast(true);
-        setTimeout(() => setShowToast(false), 3000);
+        window.setTimeout(() => setShowToast(false), 3000);
     } catch (error) {
         console.error("Failed to save policy", error);
         setShowLoadingDialog(false);
@@ -424,7 +424,7 @@ const PolicyConfig = () => {
                   min={30}
                   max={600}
                   step={30}
-                  onChange={setTimeout}
+                  onChange={setTimeoutDuration}
                 />
                 <p className="text-xs text-neutral-text-secondary">
                   If not confirmed within this time, the provisional boost is automatically rolled back.

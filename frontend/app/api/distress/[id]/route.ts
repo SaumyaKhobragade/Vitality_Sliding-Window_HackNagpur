@@ -3,13 +3,30 @@ import { updateDistressEventStatus } from "@/lib/supabase-api";
 
 export async function PATCH(
   request: Request,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const { id } = await params;
     const body = await request.json();
-    const { status, resolutionNotes, resolvedBy, clinicalNotes, priorityDelta } = body;
+    const {
+      status,
+      resolutionNotes,
+      resolvedBy,
+      clinicalNotes,
+      priorityDelta,
+    } = body;
 
-    if (!status || !["CONFIRMED", "DISMISSED", "RESOLVED", "confirmed", "dismissed", "resolved"].includes(status)) {
+    if (
+      !status ||
+      ![
+        "CONFIRMED",
+        "DISMISSED",
+        "RESOLVED",
+        "confirmed",
+        "dismissed",
+        "resolved",
+      ].includes(status)
+    ) {
       return NextResponse.json(
         { error: "Invalid status value" },
         { status: 400 },
@@ -17,7 +34,7 @@ export async function PATCH(
     }
 
     const result = await updateDistressEventStatus(
-      params.id,
+      id,
       status,
       resolutionNotes,
       resolvedBy,

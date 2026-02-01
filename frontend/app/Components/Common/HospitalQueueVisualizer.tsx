@@ -66,7 +66,6 @@ const HospitalBoard = ({
         {/* Active Treatment Lane - Real Data or Fallback */}
         <TreatmentLane
           treatments={activeTreatments}
-          fallbackCount={hospital.activeTreatments || 0}
         />
       </div>
     </div>

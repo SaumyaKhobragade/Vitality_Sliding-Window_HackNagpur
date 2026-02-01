@@ -162,8 +162,8 @@ export const updateDistressEvent = async (
   return fetchLocal<any>(`/api/distress/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ 
-      status, 
+    body: JSON.stringify({
+      status,
       resolutionNotes,
       resolvedBy,
       clinicalNotes,

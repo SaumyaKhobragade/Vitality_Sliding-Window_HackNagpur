@@ -343,8 +343,10 @@ export const SimulationProvider = ({ children }: { children: ReactNode }) => {
     setSimStats(null);
     setProcessedCount(0);
     setAvgWaitTime(0);
+    // NOTE: We do NOT reset redirectionEvents or totalRedirections
+    // They should persist across simulation resets to maintain historical data
 
-    addLog("SUCCESS", "✅ Simulation reset complete");
+    addLog("SUCCESS", "✅ Simulation reset complete (redirections preserved)");
 
     setIsLoading(false);
   }, [addLog, persistenceEnabled]);
@@ -542,8 +544,10 @@ export const SimulationProvider = ({ children }: { children: ReactNode }) => {
           ` Redirected: Patient ${getShortPatientId(event.patientId)} from ${sourceName} → ${targetName}`,
           ` Redirected: Patient ${getShortPatientId(event.patientId)} from ${sourceName} → ${targetName}`,
         );
-        setRedirectionEvents((prev) => [event, ...prev].slice(0, 100)); // Keep last 100
-        setTotalRedirections((prev) => prev + 1); // Track total count
+        // Add new redirection event to the beginning, keep all events (no limit)
+        setRedirectionEvents((prev) => [event, ...prev]);
+        // Increment total redirections counter
+        setTotalRedirections((prev) => prev + 1);
       } else if (event.type === "TREATMENT_STARTED") {
         setActiveTreatments((prev) => {
           const hospitalId = event.hospitalId;

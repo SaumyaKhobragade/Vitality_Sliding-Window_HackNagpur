@@ -18,6 +18,8 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 
 const RedirectionMonitor = () => {
+  // These values persist across simulation resets and accumulate indefinitely
+  // They are NOT cleared when the simulation is reset
   const { redirectionEvents, totalRedirections } = useSimulation();
 
   // Calculate Stats

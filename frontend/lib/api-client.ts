@@ -65,3 +65,8 @@ export const getCityStats = async (): Promise<CityStats> => {
 export const getHospital = async (id: string): Promise<Hospital> => {
   return fetchJson<Hospital>(`/hospital/${id}`);
 };
+
+export const getHospitals = async (): Promise<Hospital[]> => {
+  return fetchJson<Hospital[]>("/hospitals");
+};
+

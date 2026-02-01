@@ -29,10 +29,13 @@ public class HospitalService {
     private final Random random = new Random();
 
     private final SurgeDetectorService surgeDetectorService;
+    private final WebSocketService webSocketService;
 
     @Autowired
-    public HospitalService(SurgeDetectorService surgeDetectorService) {
+    public HospitalService(SurgeDetectorService surgeDetectorService, WebSocketService webSocketService) {
         this.surgeDetectorService = surgeDetectorService;
+        this.webSocketService = webSocketService;
+        webSocketService.broadcastEvent(Map.of("type", "SYSTEM_INIT", "message", "HospitalService Online"));
     }
 
     // Simulation Constants
@@ -124,6 +127,20 @@ public class HospitalService {
         System.out.println("Hospital " + h.getId() + " [" + dept + "]: Treating patient " + p.getId() + " (Priority: "
                 + p.getDynamicPriority() + ")");
 
+        // Broadcast Start
+        try {
+            java.util.Map<String, Object> startEvent = new java.util.HashMap<>();
+            startEvent.put("type", "TREATMENT_STARTED");
+            startEvent.put("patientId", p.getId());
+            startEvent.put("hospitalId", h.getId());
+            startEvent.put("department", dept.name());
+            startEvent.put("duration", p.getTreatmentTime());
+            startEvent.put("timestamp", System.currentTimeMillis());
+            webSocketService.broadcastEvent(startEvent);
+        } catch (Exception e) {
+            System.err.println("Failed to broadcast start event: " + e.getMessage());
+        }
+
         try {
             Thread.sleep(p.getTreatmentTime());
         } catch (InterruptedException e) {
@@ -131,6 +148,19 @@ public class HospitalService {
         } finally {
             h.getActiveTreatments().decrementAndGet();
             masterPatientIndex.remove(p.getId());
+
+            // Broadcast Completion
+            try {
+                java.util.Map<String, Object> endEvent = new java.util.HashMap<>();
+                endEvent.put("type", "TREATMENT_COMPLETED");
+                endEvent.put("patientId", p.getId());
+                endEvent.put("hospitalId", h.getId());
+                endEvent.put("timestamp", System.currentTimeMillis());
+                webSocketService.broadcastEvent(endEvent);
+            } catch (Exception e) {
+                System.err.println("Failed to broadcast end event: " + e.getMessage());
+            }
+
             System.out.println("Hospital " + h.getId() + " [" + dept + "]: Finished treating patient " + p.getId());
         }
     }

@@ -23,7 +23,8 @@ public class SimulationController {
     private final Random random = new Random();
 
     @Autowired
-    public SimulationController(HospitalService hospitalService, OrchestratorService orchestratorService, WebSocketService webSocketService) {
+    public SimulationController(HospitalService hospitalService, OrchestratorService orchestratorService,
+            WebSocketService webSocketService) {
         this.hospitalService = hospitalService;
         this.orchestratorService = orchestratorService;
         this.webSocketService = webSocketService;
@@ -51,7 +52,7 @@ public class SimulationController {
     }
 
     @PostMapping("/patient")
-    public String injectPatient(@RequestBody Map<String, Object> body) {
+    public void injectPatient(@RequestBody Map<String, Object> body) {
         String hospitalId = (String) body.get("hospitalId");
         int severity = (int) body.get("severity");
 
@@ -79,7 +80,8 @@ public class SimulationController {
             webSocketService.broadcastHospitalUpdate(updatedHospital);
         }
 
-        return "Patient " + p.getId() + " admitted to " + hospitalId + " with severity " + severity;
+        // return "Patient " + p.getId() + " admitted to " + hospitalId + " with
+        // severity " + severity;
     }
 
     @GetMapping("/stats")
@@ -90,6 +92,11 @@ public class SimulationController {
     @GetMapping("/hospital/{id}")
     public Hospital getHospital(@PathVariable String id) {
         return hospitalService.getHospital(id);
+    }
+
+    @GetMapping("/hospitals")
+    public java.util.Collection<Hospital> getAllHospitals() {
+        return hospitalService.getAllHospitals();
     }
 
     @PostMapping("/redirect/evaluate")
@@ -167,6 +174,37 @@ public class SimulationController {
 
         return "Initialized Test With 3 Hospitals and 1000 Patients.";
 
+    }
+
+    @GetMapping("/testRedirect")
+    public String redirectSurge() {
+        Map<String, String> m = new HashMap<>();
+        m.put("count", "10");
+        initializeCity(m);
+        for (int i = 0; i < 1000; i++) {
+            String hId = "H1";
+            Patient p = Patient.builder()
+                    .baseSeverity(2)
+                    .targetHospitalId(hId)
+                    .arrivalTime(java.time.Instant.now().toEpochMilli())
+                    .build();
+            hospitalService.admitPatient(hId, p);
+        }
+        for (int i = 0; i < 1000; i++) {
+            String hId = "H7";
+            Patient p = Patient.builder()
+                    .baseSeverity(10)
+                    .targetHospitalId(hId)
+                    .arrivalTime(java.time.Instant.now().toEpochMilli())
+                    .build();
+            hospitalService.admitPatient(hId, p);
+
+        }
+        return "Redirect Surge initialized.";
+    }
+
+    public String getMethodName(@RequestParam String param) {
+        return new String();
     }
 
     @PostMapping("/staffing")

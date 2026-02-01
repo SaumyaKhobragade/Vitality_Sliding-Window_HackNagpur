@@ -79,7 +79,6 @@ export default function SimulationPage() {
         <button
           onClick={() => floodHospitals()}
           className="px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 transition-all bg-slate-800 text-white hover:from-orange-600 hover:to-red-600 shadow-lg hover:shadow-xl"
-          className="px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 transition-all bg-slate-800 cursor-pointer text-white hover:from-orange-600 hover:to-red-600 shadow-lg hover:shadow-xl"
         >
           Flood Hospitals
         </button>

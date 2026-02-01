@@ -13,6 +13,7 @@ export class SseService {
   private baseUrl: string;
   private subscriptions: Map<string, Subscription> = new Map();
   private connected: boolean = false;
+  private errorLogged: Set<string> = new Set(); // Track which topics have logged errors
 
   public onConnectCallback?: () => void;
   public onDisconnectCallback?: () => void;
@@ -39,6 +40,7 @@ export class SseService {
     });
     this.subscriptions.clear();
     this.connected = false;
+    this.errorLogged.clear();
     if (this.onDisconnectCallback) this.onDisconnectCallback();
   }
 
@@ -60,7 +62,7 @@ export class SseService {
 
     const endpoint = endpointMap[topic];
     if (!endpoint) {
-      console.error(`Unknown topic: ${topic}`);
+      console.warn(`Unknown SSE topic: ${topic}`);
       return;
     }
 
@@ -84,6 +86,7 @@ export class SseService {
     eventSource.addEventListener(eventName, (event: MessageEvent) => {
       try {
         const data = JSON.parse(event.data);
+        this.errorLogged.delete(topic); // Clear error flag on successful message
         callback(data);
       } catch (e) {
         console.error("Error parsing SSE message", e);
@@ -92,14 +95,19 @@ export class SseService {
 
     eventSource.onopen = () => {
       console.log(`SSE Connected to ${topic}`);
+      this.errorLogged.delete(topic);
       if (!this.connected) {
         this.connected = true;
         if (this.onConnectCallback) this.onConnectCallback();
       }
     };
 
-    eventSource.onerror = (error) => {
-      console.error(`SSE Error on ${topic}:`, error);
+    eventSource.onerror = () => {
+      // Only log error once per topic to avoid console spam
+      if (!this.errorLogged.has(topic)) {
+        console.warn(`SSE: Backend not available for ${topic} - real-time updates disabled`);
+        this.errorLogged.add(topic);
+      }
       // EventSource will automatically reconnect
     };
 
@@ -114,7 +122,7 @@ export class SseService {
     if (sub) {
       sub.eventSource.close();
       this.subscriptions.delete(topic);
-      console.log(`SSE Unsubscribed from ${topic}`);
+      this.errorLogged.delete(topic);
     }
   }
 }

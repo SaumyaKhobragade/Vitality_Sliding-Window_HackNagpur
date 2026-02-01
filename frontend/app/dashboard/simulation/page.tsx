@@ -38,6 +38,7 @@ export default function SimulationPage() {
     policyLogic,
     setPolicyLogic,
     setPersistenceEnabled,
+    floodHospitals,
   } = useSimulation();
 
   return (
@@ -57,7 +58,7 @@ export default function SimulationPage() {
         </div>
       )}
 
-      {/* Status Bar */}
+      {/* Status Bar with Flood Button */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         {/* Supabase Persistence Toggle */}
         <button
@@ -72,6 +73,15 @@ export default function SimulationPage() {
             className={`inline-block w-2 h-2 rounded-full ${persistenceEnabled ? "bg-blue-500" : "bg-neutral-400"}`}
           ></span>
           {persistenceEnabled ? " Supabase Persistence ON" : " Persistence OFF"}
+        </button>
+
+        {/* Flood Hospitals Button */}
+        <button
+          onClick={() => floodHospitals()}
+          className="px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 transition-all bg-gradient-to-r from-orange-500 to-red-500 text-white hover:from-orange-600 hover:to-red-600 shadow-lg hover:shadow-xl"
+        >
+          <span className="text-lg">🌊</span>
+          Flood Hospitals (Demo Redirects)
         </button>
       </div>
       {/* Component 2: Chaos Controls */}

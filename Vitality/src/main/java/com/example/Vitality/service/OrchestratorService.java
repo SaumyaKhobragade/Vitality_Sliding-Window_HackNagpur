@@ -7,7 +7,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
-import java.util.concurrent.PriorityBlockingQueue;
 
 import org.springframework.scheduling.annotation.Scheduled;
 
@@ -17,12 +16,16 @@ public class OrchestratorService {
     // Auto-monitor every 5 seconds
     @Scheduled(fixedRate = 7000)
     public void monitorAndRedirect() {
-        if (hospitalService.getAllHospitals().isEmpty())
+        if (hospitalService.getAllHospitals().isEmpty()) {
+            System.out.println(">>> [Auto-Monitor] No hospitals registered yet. Skipping cycle.");
             return;
+        }
 
+        System.out.println(">>> [Auto-Monitor] ===== Starting Redirection Cycle =====");
         StringBuilder queueStats = new StringBuilder(">> [Auto-Monitor] Queues: ");
         int totalScanned = 0;
         int totalMoved = 0;
+        int totalPatientsInSystem = 0;
 
         // Iterate all hospitals
         for (Hospital h : hospitalService.getAllHospitals()) {
@@ -30,8 +33,12 @@ public class OrchestratorService {
             int nurseQ = h.getDepartmentQueueSize(Department.NURSE);
             int genQ = h.getDepartmentQueueSize(Department.GENERAL);
             int icuQ = h.getDepartmentQueueSize(Department.ICU);
+            int hospitalTotal = nurseQ + genQ + icuQ;
+            totalPatientsInSystem += hospitalTotal;
+
             queueStats.append(
-                    String.format("[%s(%d,%d): N%d G%d I%d] ", h.getId(), h.getX(), h.getY(), nurseQ, genQ, icuQ));
+                    String.format("[%s(%d,%d): N%d G%d I%d Total:%d] ",
+                            h.getId(), h.getX(), h.getY(), nurseQ, genQ, icuQ, hospitalTotal));
 
             for (Department dept : Department.values()) {
                 int[] stats = checkQueueForRedirects(h, dept);
@@ -41,22 +48,34 @@ public class OrchestratorService {
         }
 
         System.out.println(queueStats.toString());
-        System.out.println(">> [Auto-Monitor] Cycle Result -> Scanned: " + totalScanned + " | Moved: " + totalMoved);
+        System.out.println(
+                String.format(">>> [Auto-Monitor] Cycle Complete -> Total Patients: %d | Scanned: %d | Redirected: %d",
+                        totalPatientsInSystem, totalScanned, totalMoved));
+
+        if (totalMoved > 0) {
+            System.out.println(">>> [Auto-Monitor] ✅ Successfully redirected " + totalMoved + " patients this cycle!");
+        } else if (totalScanned > 0) {
+            System.out.println(
+                    ">>> [Auto-Monitor] ⚠️ Scanned " + totalScanned + " patients but found no beneficial redirections");
+        }
+        System.out.println(">>> [Auto-Monitor] ===== Cycle End =====\n");
     }
 
     private int[] checkQueueForRedirects(Hospital source, Department dept) {
-        // if (!source.getWaitingRooms().containsKey(dept))
-        // return new int[] { 0, 0 };
-
-        // Snapshot array to avoid Cme
+        // Snapshot array to avoid CME
         // Use getOrDefault to prevent NullPointer
         java.util.Queue<Patient> q = source.getWaitingRooms().get(dept);
-        if (q == null)
+        if (q == null || q.isEmpty())
             return new int[] { 0, 0 };
 
         Object[] patients = q.toArray();
         int scanned = 0;
         int moved = 0;
+
+        if (patients.length > 0) {
+            System.out.println(String.format("  >> Checking %s [%s] queue: %d patients waiting",
+                    source.getId(), dept, patients.length));
+        }
 
         for (Object obj : patients) {
             if (scanned++ > 50) // Increased limit
@@ -66,24 +85,63 @@ public class OrchestratorService {
             String bestTarget = evaluateRedirection(p.getId(), source.getId());
 
             if (bestTarget != null && !bestTarget.equals(source.getId())) {
+                System.out.println(String.format("  >> Attempting transfer: %s from %s to %s",
+                        p.getId(), source.getId(), bestTarget));
                 boolean success = hospitalService.transferPatient(p.getId(), source.getId(), bestTarget);
-                if (success)
+                if (success) {
                     moved++;
+                    System.out.println(String.format("  >> ✅ Transfer SUCCESS: %s moved to %s",
+                            p.getId(), bestTarget));
+
+                    // Broadcast redirection event to frontend
+                    Hospital targetHospital = hospitalService.getHospital(bestTarget);
+                    Map<String, Object> event = new HashMap<>();
+                    event.put("type", "PATIENT_REDIRECTED");
+                    event.put("patientId", p.getId());
+                    event.put("sourceHospitalId", source.getId());
+                    event.put("sourceHospitalName", source.getName());
+                    event.put("targetHospitalId", bestTarget);
+                    event.put("targetHospitalName", targetHospital != null ? targetHospital.getName() : bestTarget);
+                    event.put("severity", p.getSeverity());
+                    event.put("timestamp", System.currentTimeMillis());
+                    event.put("message", "🔄 Patient " + p.getId().substring(0, 8) + " redirected from "
+                            + source.getName() + " to "
+                            + (targetHospital != null ? targetHospital.getName() : bestTarget));
+                    webSocketService.broadcastEvent(event);
+                    sseService.broadcastEvent(event);
+                } else {
+                    System.out.println(
+                            String.format("  >> ❌ Transfer FAILED: %s could not be moved (likely already treating)",
+                                    p.getId()));
+                }
             }
         }
+
+        if (scanned > 0 && moved == 0) {
+            System.out.println(String.format("  >> No beneficial redirections found for %s [%s] (scanned %d patients)",
+                    source.getId(), dept, scanned));
+        }
+
         return new int[] { scanned, moved };
     }
 
     private final HospitalService hospitalService;
     private final SurgeDetectorService surgeDetectorService;
     private final WebSocketService webSocketService;
+    private final SseService sseService;
+
+    // Redirection threshold: allow redirections even with small negative benefits
+    private static final double MIN_REDIRECT_BENEFIT = -2.0;
+    // Distance penalty: 20 units distance = 1 patient in queue (reduced from 10)
+    private static final double DISTANCE_PENALTY_FACTOR = 0.05;
 
     @Autowired
     public OrchestratorService(HospitalService hospitalService, SurgeDetectorService surgeDetectorService,
-            WebSocketService webSocketService) {
+            WebSocketService webSocketService, SseService sseService) {
         this.hospitalService = hospitalService;
         this.surgeDetectorService = surgeDetectorService;
         this.webSocketService = webSocketService;
+        this.sseService = sseService;
     }
 
     /**
@@ -105,8 +163,6 @@ public class OrchestratorService {
 
         int totalPatientsWaiting = 0;
         int totalDoctorsActive = 0;
-
-        List<Map<String, Object>> hospitalDetails = new ArrayList<>();
 
         for (Hospital h : hospitals) {
             totalPatientsWaiting += h.getTotalQueueSize();
@@ -136,11 +192,13 @@ public class OrchestratorService {
         // Determine which queue matters
         Department requiredDept = hospitalService.getDepartmentForSeverity(patient.getBaseSeverity());
 
-        double maxScore = -1.0;
+        double maxScore = MIN_REDIRECT_BENEFIT - 1; // Start below threshold
         String bestTargetId = sourceHospitalId;
 
         // Get queue size ONLY for the relevant department
         double waitSource = source.getDepartmentQueueSize(requiredDept);
+
+        boolean foundCandidate = false;
 
         for (Hospital candidate : getAllHospitals()) {
             if (candidate.getId().equals(sourceHospitalId))
@@ -148,38 +206,61 @@ public class OrchestratorService {
 
             double waitCandidate = candidate.getDepartmentQueueSize(requiredDept);
 
-            // Balanced Formula: Cost = Queue + (Distance * 0.1)
-            // 10 units distance = 1 patient in queue.
+            // Balanced Formula: Cost = Queue + (Distance * DISTANCE_PENALTY_FACTOR)
+            // 20 units distance = 1 patient in queue (reduced penalty)
             double dist = Math.hypot(source.getX() - candidate.getX(), source.getY() - candidate.getY());
-            double distancePenalty = dist * 0.1;
+            double distancePenalty = dist * DISTANCE_PENALTY_FACTOR;
 
             double benefit = waitSource - (waitCandidate + distancePenalty);
 
-            if (benefit > 0 && benefit > maxScore) {
+            // Log evaluation for debugging (only for first few candidates)
+            if (!foundCandidate) {
+                System.out.println(
+                        String.format("    [Eval] Patient %s: %s(Q:%d) vs %s(Q:%d, Dist:%.1f) -> Benefit: %.2f",
+                                patientId.substring(0, Math.min(8, patientId.length())),
+                                sourceHospitalId, (int) waitSource,
+                                candidate.getId(), (int) waitCandidate, dist, benefit));
+            }
+
+            // Relaxed threshold: allow redirections with benefit > MIN_REDIRECT_BENEFIT
+            if (benefit > MIN_REDIRECT_BENEFIT && benefit > maxScore) {
                 maxScore = benefit;
                 bestTargetId = candidate.getId();
+                foundCandidate = true;
             }
         }
 
         if (!bestTargetId.equals(sourceHospitalId)) {
-            System.out.println("Orchestrator: SUGGEST REDIRECT " + patientId + " from " + sourceHospitalId + " to "
-                    + bestTargetId + " (Benefit: " + maxScore + ")");
+            // Get the target hospital for its name
+            Hospital targetHospital = hospitalService.getHospital(bestTargetId);
 
-            // Broadcast suggestion/event
-            Map<String, Object> event = java.util.Map.of(
-                    "type", "PATIENT_REDIRECTED",
-                    "patientId", patientId,
-                    "sourceHospitalId", sourceHospitalId,
-                    "targetHospitalId", bestTargetId,
-                    "benefitScore", maxScore,
-                    "timestamp", System.currentTimeMillis());
+            System.out.println(String.format("    ✅ REDIRECT DECISION: %s from %s to %s (Benefit: %.2f)",
+                    patientId.substring(0, Math.min(8, patientId.length())),
+                    sourceHospitalId, bestTargetId, maxScore));
+
+            // Broadcast suggestion/event via both WebSocket and SSE
+            Map<String, Object> event = new java.util.HashMap<>();
+            event.put("type", "PATIENT_REDIRECTED");
+            event.put("patientId", patientId);
+            event.put("sourceHospitalId", sourceHospitalId);
+            event.put("sourceHospitalName", source.getName());
+            event.put("targetHospitalId", bestTargetId);
+            event.put("targetHospitalName", targetHospital != null ? targetHospital.getName() : bestTargetId);
+            event.put("benefitScore", maxScore);
+            event.put("timestamp", System.currentTimeMillis());
+
             try {
                 webSocketService.broadcastEvent(event);
-                // System.out.println("Orchestrator: Broadcasted REDIRECT event for " +
-                // patientId);
+                sseService.broadcastEvent(event);
             } catch (Exception e) {
                 System.err.println("Orchestrator: Failed to broadcast REDIRECT event: " + e.getMessage());
             }
+        } else if (waitSource > 5) {
+            // Log why no redirect was found for busy hospitals
+            System.out.println(String.format(
+                    "    ⚠️ No beneficial redirect for %s at %s (Queue: %d, Max benefit: %.2f < threshold: %.2f)",
+                    patientId.substring(0, Math.min(8, patientId.length())),
+                    sourceHospitalId, (int) waitSource, maxScore, MIN_REDIRECT_BENEFIT));
         }
 
         return bestTargetId;

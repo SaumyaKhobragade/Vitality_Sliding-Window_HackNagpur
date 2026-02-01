@@ -54,6 +54,7 @@ interface SimulationContextType {
   handleReset: () => Promise<void>;
   triggerSurge: (count?: number) => void;
   triggerStaffDropout: (percent: number) => void;
+  floodHospitals: () => Promise<void>;
 
   // Configuration
   patientSurge: number;
@@ -366,6 +367,36 @@ export const SimulationProvider = ({ children }: { children: ReactNode }) => {
     [isRunning, patientSurge, addLog],
   );
 
+  // Flood Hospitals - inject many patients into a few hospitals to trigger redirections
+  const floodHospitals = useCallback(async () => {
+    try {
+      addLog(
+        "WARN",
+        `🌊 Flooding hospitals with patients to trigger redirections...`,
+      );
+      const response = await fetch(
+        `http://localhost:9090/api/simulation/flood`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            patientsPerHospital: 200,
+            hospitalsToFlood: 3,
+          }),
+        },
+      );
+      const data = await response.json();
+      if (data.success) {
+        addLog("INFO", `✅ ${data.message}`);
+        addLog("INFO", `🏥 Flooded: ${data.hospitalsFlooded.join(", ")}`);
+      } else {
+        addLog("CRITICAL", `❌ ${data.message}`);
+      }
+    } catch (err) {
+      addLog("CRITICAL", `❌ Failed to flood hospitals: ${err}`);
+    }
+  }, [addLog]);
+
   // Trigger Staff Dropout
   const triggerStaffDropout = useCallback(
     (percent: number) => {
@@ -469,17 +500,38 @@ export const SimulationProvider = ({ children }: { children: ReactNode }) => {
       // Example: Add to event log, show toast notifications, etc.
       if (event.type === "SURGE_TRIGGERED") {
         console.warn(`⚠️ SURGE: ${event.count} patients injected`);
+        addLog("WARN", `⚡ Surge: ${event.count} patients injected`);
+      } else if (event.type === "HOSPITALS_FLOODED") {
+        console.warn(`🌊 FLOODED: ${event.hospitalsFlooded?.join(", ")}`);
+        addLog(
+          "WARN",
+          `🌊 Flooded ${event.hospitalsFlooded?.length || 0} hospitals with ${event.totalPatients} patients`,
+        );
       } else if (event.type === "DISTRESS_DETECTED") {
         console.error(
           `🚨 DISTRESS: ${getShortPatientId(event.patientId)} at priority ${event.newPriority}`,
+        );
+        addLog(
+          "CRITICAL",
+          `🚨 Distress: Patient ${getShortPatientId(event.patientId)} at priority ${event.newPriority}`,
         );
       } else if (event.type === "PATIENT_ADMITTED") {
         console.info(
           `✅ ADMITTED: ${getShortPatientId(event.patientId)} to ${event.hospitalId}`,
         );
+        addLog(
+          "INFO",
+          `✅ Admitted: Patient ${getShortPatientId(event.patientId)} to ${event.hospitalName || event.hospitalId}`,
+        );
       } else if (event.type === "PATIENT_REDIRECTED") {
+        const sourceName = event.sourceHospitalName || event.sourceHospitalId;
+        const targetName = event.targetHospitalName || event.targetHospitalId;
         console.info(
-          `🔄 REDIRECT: ${getShortPatientId(event.patientId)} moved ${event.sourceHospitalId} -> ${event.targetHospitalId}`,
+          `🔄 REDIRECT: ${getShortPatientId(event.patientId)} moved ${sourceName} -> ${targetName}`,
+        );
+        addLog(
+          "SUCCESS",
+          `🔄 Redirected: Patient ${getShortPatientId(event.patientId)} from ${sourceName} → ${targetName}`,
         );
         setRedirectionEvents((prev) => [event, ...prev].slice(0, 100)); // Keep last 100
         setTotalRedirections((prev) => prev + 1); // Track total count
@@ -540,6 +592,7 @@ export const SimulationProvider = ({ children }: { children: ReactNode }) => {
         handleReset,
         triggerSurge,
         triggerStaffDropout,
+        floodHospitals,
 
         // Configuration
         patientSurge,

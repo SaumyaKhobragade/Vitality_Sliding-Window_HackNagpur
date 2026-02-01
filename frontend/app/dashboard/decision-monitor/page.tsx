@@ -69,12 +69,13 @@ const StatsCard = ({
       <p className="text-4xl font-bold text-foreground">{value}</p>
       {trend && (
         <div
-          className={`flex items-center gap-1 text-sm font-semibold px-2 py-0.5 rounded-full ${trendColor === "green"
+          className={`flex items-center gap-1 text-sm font-semibold px-2 py-0.5 rounded-full ${
+            trendColor === "green"
               ? "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400"
               : trendColor === "red"
                 ? "bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400"
                 : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400"
-            }`}
+          }`}
         >
           {trendColor === "green" && <TrendingUp className="h-4 w-4" />}
           <span>{trend}</span>
@@ -124,7 +125,11 @@ const StatusBadge = ({ status }: { status: string }) => {
     },
   };
 
-  const { icon: Icon, color, label } = config[status as keyof typeof config] || config.pending;
+  const {
+    icon: Icon,
+    color,
+    label,
+  } = config[status as keyof typeof config] || config.pending;
 
   return (
     <div className="flex items-center gap-2">
@@ -146,11 +151,15 @@ const getProgressColor = (color: string) => {
 
 const getIconBgColor = (color: string) => {
   const colors: Record<string, string> = {
-    purple: "bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-300",
+    purple:
+      "bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-300",
     blue: "bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300",
     teal: "bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-300",
   };
-  return colors[color] || "bg-gray-100 dark:bg-gray-900/30 text-gray-600 dark:text-gray-300";
+  return (
+    colors[color] ||
+    "bg-gray-100 dark:bg-gray-900/30 text-gray-600 dark:text-gray-300"
+  );
 };
 
 const DecisionMonitorPage = () => {
@@ -161,18 +170,18 @@ const DecisionMonitorPage = () => {
   const [statusFilter, setStatusFilter] = useState("any");
   const [decisionTypeFilter, setDecisionTypeFilter] = useState("all");
   const [loading, setLoading] = useState(true);
-  const { hospitals } = useSimulation();
+  const { hospitals, redirectionEvents, totalRedirections } = useSimulation();
   const { socketService } = useRealtime();
 
   const fetchDecisions = useCallback(async () => {
     setLoading(true);
     try {
-        const data = await ApiClient.getRedirectionDecisions();
-        setDecisions(data);
+      const data = await ApiClient.getRedirectionDecisions();
+      setDecisions(data);
     } catch (error) {
-        console.error("Failed to load decisions", error);
+      console.error("Failed to load decisions", error);
     } finally {
-        setLoading(false);
+      setLoading(false);
     }
   }, []);
 
@@ -181,13 +190,17 @@ const DecisionMonitorPage = () => {
       const treatmentsData = await ApiClient.getTreatments();
       const mappedTreatments = treatmentsData.map((record) => {
         let icon = <Stethoscope className="h-5 w-5" />;
-        if (record.type === "Trauma") icon = <PersonStanding className="h-5 w-5" />;
+        if (record.type === "Trauma")
+          icon = <PersonStanding className="h-5 w-5" />;
         if (record.type === "Cardiac") icon = <Heart className="h-5 w-5" />;
 
         const start = new Date(record.startedAt).getTime();
         const diff = Math.max(0, Date.now() - start);
         const minutes = Math.floor(diff / 60000);
-        const elapsed = minutes > 60 ? `${Math.floor(minutes / 60)}h ${minutes % 60}m elapsed` : `${minutes}m elapsed`;
+        const elapsed =
+          minutes > 60
+            ? `${Math.floor(minutes / 60)}h ${minutes % 60}m elapsed`
+            : `${minutes}m elapsed`;
 
         return {
           id: record.id,
@@ -221,7 +234,14 @@ const DecisionMonitorPage = () => {
         fetchDecisions();
       }
       // Refetch treatments on patient-related events
-      if (["PATIENT_ADMITTED", "PATIENT_DISCHARGED", "TREATMENT_STARTED", "TREATMENT_COMPLETED"].includes(event.type)) {
+      if (
+        [
+          "PATIENT_ADMITTED",
+          "PATIENT_DISCHARGED",
+          "TREATMENT_STARTED",
+          "TREATMENT_COMPLETED",
+        ].includes(event.type)
+      ) {
         fetchTreatments();
       }
     });
@@ -236,14 +256,14 @@ const DecisionMonitorPage = () => {
   };
 
   const getHospitalName = (id: string) => {
-      return hospitals[id]?.name || id;
+    return hospitals[id]?.name || id;
   };
 
   // Filter data based on search and filters
   const filteredDecisions = decisions.filter((decision) => {
     const fromName = getHospitalName(decision.fromHospital);
     const toName = getHospitalName(decision.toHospital);
-    
+
     const matchesSearch =
       searchQuery === "" ||
       decision.patientId.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -278,8 +298,14 @@ const DecisionMonitorPage = () => {
               <Download className="h-4 w-4" />
               Export Log
             </Button>
-            <Button className="gap-2 shadow-lg shadow-primary/20" onClick={fetchDecisions} disabled={loading}>
-              <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+            <Button
+              className="gap-2 shadow-lg shadow-primary/20"
+              onClick={fetchDecisions}
+              disabled={loading}
+            >
+              <RefreshCw
+                className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
+              />
               Live Refresh
             </Button>
           </div>
@@ -288,8 +314,8 @@ const DecisionMonitorPage = () => {
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <StatsCard
-            title="Total Redirects Today"
-            value={decisions.length}
+            title="Total Redirects"
+            value={totalRedirections}
             icon={Route}
             trend="-"
             trendColor="neutral"
@@ -303,11 +329,82 @@ const DecisionMonitorPage = () => {
           />
           <StatsCard
             title="Failed Redirects"
-            value={decisions.filter(d => d.status === "failed").length}
+            value={decisions.filter((d) => d.status === "failed").length}
             icon={AlertTriangle}
             trend="-"
             trendColor="neutral"
           />
+        </div>
+
+        {/* Live Redirection Events Section */}
+        <div className="rounded-xl border border-border bg-surface-light dark:bg-surface-dark shadow-sm overflow-hidden p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-lg font-bold">Live Redirection Events</h3>
+            <div className="flex items-center gap-2">
+              <span className="inline-block w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+              <span className="text-xs text-muted-foreground">
+                Real-time • {totalRedirections} total
+              </span>
+            </div>
+          </div>
+          <div className="space-y-3 max-h-96 overflow-y-auto">
+            {redirectionEvents.length === 0 && (
+              <p className="text-muted-foreground text-sm text-center py-8">
+                No redirection events yet. Redirections will appear here in
+                real-time.
+              </p>
+            )}
+            {redirectionEvents.slice(0, 50).map((event, idx) => (
+              <div
+                key={`${event.patientId}-${event.timestamp}-${idx}`}
+                className="flex items-center justify-between p-4 bg-background rounded-lg border border-border hover:border-primary/50 transition-colors"
+              >
+                <div className="flex items-center gap-4 flex-1">
+                  <div className="flex items-center justify-center w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300">
+                    <Route className="h-5 w-5" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-mono text-sm font-medium text-primary">
+                        {getShortPatientId(event.patientId)}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        redirected
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="font-medium text-foreground">
+                        {event.sourceHospitalName ||
+                          getHospitalName(event.sourceHospitalId)}
+                      </span>
+                      <ArrowRight className="h-3 w-3 text-muted-foreground" />
+                      <span className="font-medium text-foreground">
+                        {event.targetHospitalName ||
+                          getHospitalName(event.targetHospitalId)}
+                      </span>
+                      {event.benefitScore !== undefined && (
+                        <>
+                          <span className="text-muted-foreground">•</span>
+                          <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+                            Benefit: {event.benefitScore.toFixed(2)}
+                          </span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <span className="text-xs text-muted-foreground">
+                    {new Date(event.timestamp).toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      second: "2-digit",
+                    })}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* Active Treatments Section */}
@@ -318,18 +415,23 @@ const DecisionMonitorPage = () => {
           </div>
           <div className="space-y-6">
             {treatments.length === 0 && (
-              <p className="text-muted-foreground text-sm">No active treatments.</p>
+              <p className="text-muted-foreground text-sm">
+                No active treatments.
+              </p>
             )}
             {treatments.map((treatment) => (
               <div key={treatment.id} className="group">
                 <div className="mb-2 flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className={`h-10 w-10 flex items-center justify-center rounded-full ${getIconBgColor(treatment.color)}`}>
+                    <div
+                      className={`h-10 w-10 flex items-center justify-center rounded-full ${getIconBgColor(treatment.color)}`}
+                    >
                       {treatment.icon}
                     </div>
                     <div>
                       <p className="text-sm font-bold">
-                        {getShortPatientId(treatment.patientId)} ({treatment.type})
+                        {getShortPatientId(treatment.patientId)} (
+                        {treatment.type})
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {treatment.doctor} · {treatment.location}
@@ -404,24 +506,29 @@ const DecisionMonitorPage = () => {
               </TableHeader>
               <TableBody>
                 {loading && (
-                    <TableRow>
-                        <TableCell colSpan={7} className="text-center py-8">Loading decisions...</TableCell>
-                    </TableRow>
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-8">
+                      Loading decisions...
+                    </TableCell>
+                  </TableRow>
                 )}
                 {!loading && filteredDecisions.length === 0 && (
-                    <TableRow>
-                        <TableCell colSpan={7} className="text-center py-8">No decisions found.</TableCell>
-                    </TableRow>
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-8">
+                      No decisions found.
+                    </TableCell>
+                  </TableRow>
                 )}
                 {filteredDecisions.map((decision) => (
                   <React.Fragment key={decision.id}>
                     {/* Main Row */}
                     <TableRow
                       onClick={() => handleToggleRow(decision.id)}
-                      className={`cursor-pointer hover:bg-muted/50 ${expandedRow === decision.id
+                      className={`cursor-pointer hover:bg-muted/50 ${
+                        expandedRow === decision.id
                           ? "bg-primary/5 dark:bg-primary/5 border-l-4 border-l-primary"
                           : ""
-                        }`}
+                      }`}
                     >
                       <TableCell>
                         <span className="font-mono text-sm text-primary font-medium bg-primary/5 px-2 py-1 rounded">
@@ -449,7 +556,10 @@ const DecisionMonitorPage = () => {
                       </TableCell>
                       <TableCell>
                         <span className="text-sm text-muted-foreground">
-                          {new Date(decision.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          {new Date(decision.time).toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
                         </span>
                       </TableCell>
                       <TableCell>
@@ -495,8 +605,8 @@ const DecisionMonitorPage = () => {
                                   {decision.confidenceScore >= 80
                                     ? "High confidence - Optimal bed availability and transport time."
                                     : decision.confidenceScore >= 60
-                                    ? "Moderate confidence - Acceptable conditions for redirection."
-                                    : "Low confidence - Limited options or constraints present."}
+                                      ? "Moderate confidence - Acceptable conditions for redirection."
+                                      : "Low confidence - Limited options or constraints present."}
                                 </p>
                               </div>
 

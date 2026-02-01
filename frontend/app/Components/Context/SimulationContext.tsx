@@ -513,23 +513,19 @@ export const SimulationProvider = ({ children }: { children: ReactNode }) => {
         );
       } else if (event.type === "DISTRESS_DETECTED") {
         console.error(
-          ` DISTRESS: ${getShortPatientId(event.patientId)} at priority ${event.newPriority}`,
-          ` DISTRESS: ${getShortPatientId(event.patientId)} at priority ${event.newPriority}`,
+          ` DISTRESS: ${getShortPatientId(event.patientId)} at priority ${event.newPriority}`
         );
         addLog(
           "CRITICAL",
-          ` Distress: Patient ${getShortPatientId(event.patientId)} at priority ${event.newPriority}`,
-          ` Distress: Patient ${getShortPatientId(event.patientId)} at priority ${event.newPriority}`,
+          ` Distress: Patient ${getShortPatientId(event.patientId)} at priority ${event.newPriority}`
         );
       } else if (event.type === "PATIENT_ADMITTED") {
         console.info(
-          ` ADMITTED: ${getShortPatientId(event.patientId)} to ${event.hospitalId}`,
-          ` ADMITTED: ${getShortPatientId(event.patientId)} to ${event.hospitalId}`,
+          ` ADMITTED: ${getShortPatientId(event.patientId)} to ${event.hospitalId}`
         );
         addLog(
           "INFO",
-          ` Admitted: Patient ${getShortPatientId(event.patientId)} to ${event.hospitalName || event.hospitalId}`,
-          ` Admitted: Patient ${getShortPatientId(event.patientId)} to ${event.hospitalName || event.hospitalId}`,
+          ` Admitted: Patient ${getShortPatientId(event.patientId)} to ${event.hospitalName || event.hospitalId}`
         );
       } else if (event.type === "PATIENT_REDIRECTED") {
         const sourceName = event.sourceHospitalName || event.sourceHospitalId;

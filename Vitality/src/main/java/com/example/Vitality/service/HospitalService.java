@@ -73,6 +73,9 @@ public class HospitalService {
         h.getWaitingRooms().put(dept, queue);
         h.getStaffControl().put(dept, new ConcurrentLinkedDeque<>());
 
+        // Store baseline count for surge scaling
+        h.getBaselineStaffCount().put(dept, staffCount);
+
         ThreadFactory factory = r -> new Thread(r, h.getId() + "-" + dept + "-" + System.nanoTime());
         // Core and Max must be adjustable.
         ThreadPoolExecutor executor = new ThreadPoolExecutor(
@@ -298,6 +301,38 @@ public class HospitalService {
                     executor.setMaximumPoolSize(Math.max(targetCount, 1)); // Keep at least 1 slot or target
                 }
             }
+        }
+    }
+
+    /**
+     * Scale staff for a specific hospital by a factor relative to baseline.
+     * 
+     * @param hospitalId The hospital to scale
+     * @param factor     Scaling factor (1.0 = baseline, 1.4 = 40% increase)
+     */
+    public synchronized void scaleStaffByFactor(String hospitalId, double factor) {
+        Hospital h = cityHospitals.get(hospitalId);
+        if (h != null) {
+            for (Department dept : Department.values()) {
+                Integer baseline = h.getBaselineStaffCount().get(dept);
+                if (baseline != null) {
+                    int targetCount = Math.max(1, (int) (baseline * factor));
+                    updateStaffCount(hospitalId, dept, targetCount);
+                }
+            }
+        }
+    }
+
+    /**
+     * Scale all hospitals in the city by a factor.
+     * Used for surge response (1.4 = 40% increase) and recovery (1.0 = baseline).
+     * 
+     * @param factor Scaling factor
+     */
+    public void scaleAllHospitals(double factor) {
+        System.out.println(">>> 🏥 SCALING ALL HOSPITALS by factor: " + factor + " <<<");
+        for (Hospital h : cityHospitals.values()) {
+            scaleStaffByFactor(h.getId(), factor);
         }
     }
 

@@ -6,6 +6,7 @@ import { ChaosControls } from "../../Components/Simulation/ChaosControls";
 import { LiveImpactAnalysisFrontend } from "../../Components/Simulation/LiveImpactAnalysisFrontend";
 import { EventStream } from "../../Components/Simulation/EventStream";
 import { useSimulation } from "../../Components/Context/SimulationContext";
+import { Toaster } from "@/components/ui/sonner";
 
 // --- Main Page Component ---
 
@@ -20,13 +21,13 @@ export default function SimulationPage() {
     avgWaitTime,
     processedCount,
     persistenceEnabled,
-    
+
     // Controls
     handleRunToggle,
     handleReset,
     triggerSurge,
     triggerStaffDropout,
-    
+
     // Configuration
     patientSurge,
     setPatientSurge,
@@ -58,8 +59,6 @@ export default function SimulationPage() {
 
       {/* Status Bar */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
-
-
         {/* Supabase Persistence Toggle */}
         <button
           onClick={() => setPersistenceEnabled(!persistenceEnabled)}
@@ -69,7 +68,9 @@ export default function SimulationPage() {
               : "bg-neutral-100 border border-neutral-200 text-neutral-600"
           }`}
         >
-          <span className={`inline-block w-2 h-2 rounded-full ${persistenceEnabled ? "bg-blue-500" : "bg-neutral-400"}`}></span>
+          <span
+            className={`inline-block w-2 h-2 rounded-full ${persistenceEnabled ? "bg-blue-500" : "bg-neutral-400"}`}
+          ></span>
           {persistenceEnabled ? " Supabase Persistence ON" : " Persistence OFF"}
         </button>
       </div>
@@ -104,6 +105,9 @@ export default function SimulationPage() {
           <EventStream logs={logs} />
         </div>
       </div>
+
+      {/* Toast Notifications */}
+      <Toaster />
     </div>
   );
 }

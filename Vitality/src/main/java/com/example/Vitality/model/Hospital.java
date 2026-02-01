@@ -32,6 +32,10 @@ public class Hospital {
     @Builder.Default
     private Map<Department, Deque<AtomicBoolean>> staffControl = new ConcurrentHashMap<>();
 
+    // Baseline staff counts for surge scaling (stores original counts)
+    @Builder.Default
+    private Map<Department, Integer> baselineStaffCount = new ConcurrentHashMap<>();
+
     // Metrics
     @Builder.Default
     private AtomicInteger activeTreatments = new AtomicInteger(0);
@@ -58,6 +62,7 @@ public class Hospital {
     public String getId() {
         return this.id;
     }
+
     public int getX() {
         return this.x;
     }
@@ -65,6 +70,7 @@ public class Hospital {
     public int getY() {
         return this.y;
     }
+
     public int getCapacity() {
         return this.maxCapacity;
     }

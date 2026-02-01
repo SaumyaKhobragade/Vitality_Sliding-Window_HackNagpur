@@ -29,7 +29,9 @@ export interface SimulationEvent {
     | "PATIENT_ADMITTED"
     | "PATIENT_DISCHARGED"
     | "REDIRECTION"
-    | "STAFF_DROPOUT";
+    | "STAFF_DROPOUT"
+    | "SURGE_DETECTED"
+    | "SURGE_ENDED";
   timestamp: number;
   data: Record<string, any>;
 }

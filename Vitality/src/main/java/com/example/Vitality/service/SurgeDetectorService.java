@@ -2,6 +2,7 @@ package com.example.Vitality.service;
 
 import com.example.Vitality.model.Patient;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
 import java.util.Deque;
@@ -17,12 +18,18 @@ public class SurgeDetectorService {
     private final Deque<Long> arrivalTimestamps = new ConcurrentLinkedDeque<>();
 
     private volatile boolean surgeActive = false;
-    
+
+    private final HospitalService hospitalService;
     private final TriagePolicyService triagePolicyService;
+    private final SseService sseService;
 
     @Autowired
-    public SurgeDetectorService(TriagePolicyService triagePolicyService) {
+    public SurgeDetectorService(@Lazy HospitalService hospitalService,
+            TriagePolicyService triagePolicyService,
+            SseService sseService) {
+        this.hospitalService = hospitalService;
         this.triagePolicyService = triagePolicyService;
+        this.sseService = sseService;
     }
 
     public void recordArrival() {
@@ -48,10 +55,34 @@ public class SurgeDetectorService {
                 System.out.println(">>> 🚨 SURGE DETECTED! (Rate: " + currentRate
                         + "/min) >>> Switching to SURVIVAL MODE (Time Weight: 1.0)");
                 triagePolicyService.updatePolicy("aging_factor", 1.0); // Boost wait time importance
+
+                // SURGE RESPONSE: Increase all hospital threads by 40%
+                hospitalService.scaleAllHospitals(1.4);
+
+                // Broadcast surge detected event via SSE
+                java.util.Map<String, Object> event = new java.util.HashMap<>();
+                event.put("type", "SURGE_DETECTED");
+                event.put("timestamp", System.currentTimeMillis());
+                event.put("rate", currentRate);
+                event.put("scalingFactor", 1.4);
+                event.put("message", "Hospitals scaling to 140% capacity");
+                sseService.broadcastEvent(event);
             } else {
                 System.out.println(">>> 🟢 SURGE ENDED. (Rate: " + currentRate
                         + "/min) >>> Returning to NORMAL MODE (Time Weight: 0.5)");
                 triagePolicyService.updatePolicy("aging_factor", 0.5); // Normal balance
+
+                // SURGE RECOVERY: Restore all hospitals to baseline
+                hospitalService.scaleAllHospitals(1.0);
+
+                // Broadcast surge ended event via SSE
+                java.util.Map<String, Object> event = new java.util.HashMap<>();
+                event.put("type", "SURGE_ENDED");
+                event.put("timestamp", System.currentTimeMillis());
+                event.put("rate", currentRate);
+                event.put("scalingFactor", 1.0);
+                event.put("message", "Hospitals restored to baseline capacity");
+                sseService.broadcastEvent(event);
             }
         }
     }

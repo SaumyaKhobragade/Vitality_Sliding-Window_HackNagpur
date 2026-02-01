@@ -382,7 +382,7 @@ const AlertsPage = () => {
           <div className="flex items-center gap-4">
             <div className="text-right">
               <div className="text-2xl font-bold text-red-600 dark:text-red-400">
-                {alerts.length}
+                {videoClips.length + alerts.length}
               </div>
               <div className="text-xs text-text-secondary-light dark:text-text-secondary-dark uppercase">
                 Active Alerts
@@ -662,16 +662,16 @@ const AlertsPage = () => {
                       </div>
                       <ArrowRight className="h-5 w-5 text-gray-400" />
                       <div className={`p-2 rounded-lg text-center min-w-[60px] border ${selectedVideoClip.signalType === "STABLE" || selectedVideoClip.signalType === "BASELINE"
-                          ? "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800"
-                          : "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800"
+                        ? "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800"
+                        : "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800"
                         }`}>
                         <span className={`block text-xs uppercase font-bold ${selectedVideoClip.signalType === "STABLE" || selectedVideoClip.signalType === "BASELINE"
-                            ? "text-green-600 dark:text-green-400"
-                            : "text-red-600 dark:text-red-400"
+                          ? "text-green-600 dark:text-green-400"
+                          : "text-red-600 dark:text-red-400"
                           }`}>Priority</span>
                         <span className={`block font-bold text-lg ${selectedVideoClip.signalType === "STABLE" || selectedVideoClip.signalType === "BASELINE"
-                            ? "text-green-600 dark:text-green-400"
-                            : "text-red-600 dark:text-red-400"
+                          ? "text-green-600 dark:text-green-400"
+                          : "text-red-600 dark:text-red-400"
                           }`}>
                           {selectedVideoClip.signalType === "STABLE" || selectedVideoClip.signalType === "BASELINE" ? "Low" : "High"}
                         </span>
@@ -688,17 +688,17 @@ const AlertsPage = () => {
 
               {/* Recommendation */}
               <div className={`border-l-4 p-4 mb-6 rounded-r-lg flex items-start ${selectedVideoClip.signalType === "STABLE" || selectedVideoClip.signalType === "BASELINE"
-                  ? "bg-green-50 dark:bg-green-900/20 border-green-500"
-                  : "bg-blue-50 dark:bg-blue-900/20 border-primary"
+                ? "bg-green-50 dark:bg-green-900/20 border-green-500"
+                : "bg-blue-50 dark:bg-blue-900/20 border-primary"
                 }`}>
                 <Info className={`mr-3 mt-0.5 h-5 w-5 ${selectedVideoClip.signalType === "STABLE" || selectedVideoClip.signalType === "BASELINE"
-                    ? "text-green-500"
-                    : "text-primary"
+                  ? "text-green-500"
+                  : "text-primary"
                   }`} />
                 <div>
                   <h4 className={`font-bold text-sm uppercase tracking-wide ${selectedVideoClip.signalType === "STABLE" || selectedVideoClip.signalType === "BASELINE"
-                      ? "text-green-600 dark:text-green-400"
-                      : "text-primary dark:text-blue-400"
+                    ? "text-green-600 dark:text-green-400"
+                    : "text-primary dark:text-blue-400"
                     }`}>
                     Recommended Action
                   </h4>

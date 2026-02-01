@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -14,6 +14,7 @@ import {
     CircleHelp,
     Users,
     Play,
+    UserPlus,
 } from "lucide-react";
 import {
     Sidebar as ShadcnSidebar,
@@ -30,10 +31,33 @@ import {
 } from "@/components/ui/sidebar";
 import { useAuth } from "@/app/Context/AuthContext";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import * as ApiClient from "@/lib/api-client";
+
+const CCTV_VIDEO_CLIP_COUNT = 6; // Number of CCTV video clips for distress monitoring
 
 const Sidebar = () => {
     const pathname = usePathname();
     const { user } = useAuth();
+    const [alertCount, setAlertCount] = useState(CCTV_VIDEO_CLIP_COUNT); // Start with CCTV count
+
+    // Fetch database alert count
+    useEffect(() => {
+        const fetchAlertCount = async () => {
+            try {
+                const events = await ApiClient.getDistressEvents();
+                const activeAlerts = events.filter((e: any) => e.status === 'active');
+                setAlertCount(CCTV_VIDEO_CLIP_COUNT + activeAlerts.length);
+            } catch (error) {
+                // Keep default count on error
+                console.warn('Could not fetch alert count');
+            }
+        };
+
+        fetchAlertCount();
+        // Refresh every 30 seconds
+        const interval = setInterval(fetchAlertCount, 30000);
+        return () => clearInterval(interval);
+    }, []);
 
     return (
         <ShadcnSidebar collapsible="icon">
@@ -116,6 +140,21 @@ const Sidebar = () => {
                             <SidebarMenuItem>
                                 <SidebarMenuButton
                                     asChild
+                                    isActive={pathname.startsWith("/dashboard/add-patient")}
+                                    tooltip="Add Patient"
+                                >
+                                    <Link href="/dashboard/add-patient">
+                                        <UserPlus />
+                                        <span>Add Patient</span>
+                                        <span className="ml-auto bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-300 py-0.5 px-2 rounded-full text-xs font-bold group-data-[collapsible=icon]:hidden">
+                                            New
+                                        </span>
+                                    </Link>
+                                </SidebarMenuButton>
+                            </SidebarMenuItem>
+                            <SidebarMenuItem>
+                                <SidebarMenuButton
+                                    asChild
                                     isActive={pathname.startsWith("/dashboard/decision-monitor")}
                                     tooltip="Redirections"
                                 >
@@ -135,7 +174,7 @@ const Sidebar = () => {
                                         <BellRing />
                                         <span>Distress Alerts</span>
                                         <span className="ml-auto bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-300 py-0.5 px-2 rounded-full text-xs font-bold group-data-[collapsible=icon]:hidden">
-                                            3
+                                            {alertCount}
                                         </span>
                                     </Link>
                                 </SidebarMenuButton>

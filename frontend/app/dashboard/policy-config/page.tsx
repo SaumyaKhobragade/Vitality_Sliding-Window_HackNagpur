@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Info,
   AlertTriangle,
@@ -22,9 +22,15 @@ import { LoadingDialog } from "@/app/Components/dashboard/LoadingDialog";
 import { SuccessToast } from "@/app/Components/dashboard/SuccessToast";
 import { AlertBanner } from "@/app/Components/dashboard/AlertBanner";
 
+import * as ApiClient from "@/lib/api-client";
+import { Policy } from "@/lib/types";
+
 const PolicyConfig = () => {
   // State for configuration
-  const [activePolicy, setActivePolicy] = useState("ADAPTIVE");
+  const [policies, setPolicies] = useState<Policy[]>([]);
+  const [selectedPolicyId, setSelectedPolicyId] = useState<string | null>(null);
+  
+  // Form State
   const [severityWeight, setSeverityWeight] = useState(0.85);
   const [agingRate, setAgingRate] = useState(15); // Minutes
   const [enableAging, setEnableAging] = useState(true);
@@ -36,14 +42,42 @@ const PolicyConfig = () => {
   const [showToast, setShowToast] = useState(false);
   const [showCrisisAlert, setShowCrisisAlert] = useState(false);
 
+  useEffect(() => {
+      loadPolicies();
+  }, []);
+
+  const loadPolicies = async () => {
+      try {
+          const data = await ApiClient.getPolicies();
+          setPolicies(data);
+          
+          // Select active policy by default, or first one
+          const active = data.find(p => p.isActive);
+          if (active) selectPolicy(active);
+          else if (data.length > 0) selectPolicy(data[0]);
+      } catch (error) {
+          console.error("Failed to load policies", error);
+      }
+  };
+
+  const selectPolicy = (policy: Policy) => {
+      setSelectedPolicyId(policy.id);
+      setSeverityWeight(policy.severityWeight);
+      setAgingRate(policy.agingRateMinutes);
+      setEnableAging(policy.enableAging);
+      setDistressDecay(policy.distressDecay);
+      
+      if (policy.isAlertMode) {
+          setShowCrisisAlert(true);
+      } else {
+          setShowCrisisAlert(false);
+      }
+  };
+
   // Handlers
   const handlePolicyChange = (policyId: string) => {
-    setActivePolicy(policyId);
-    if (policyId === "CRISIS_OVERRIDE") {
-      setShowCrisisAlert(true);
-    } else {
-      setShowCrisisAlert(false);
-    }
+    const policy = policies.find(p => p.id === policyId);
+    if (policy) selectPolicy(policy);
   };
 
   const handleSavePolicy = () => {
@@ -51,46 +85,41 @@ const PolicyConfig = () => {
   };
 
   const handleConfirmSave = async () => {
+    if (!selectedPolicyId) return;
+    
     setShowConfirmDialog(false);
     setShowLoadingDialog(true);
-    // Simulate API call and propagation
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    setShowLoadingDialog(false);
-    setShowToast(true);
-    setTimeout(() => setShowToast(false), 3000);
+    
+    try {
+        await ApiClient.updatePolicy({
+            id: selectedPolicyId,
+            severityWeight,
+            agingRateMinutes: agingRate,
+            enableAging,
+            distressDecay,
+            isAlertMode: showCrisisAlert // Persist alert mode if toggled? Or assume it's static per policy type?
+            // Note: isActive is not toggled by this form save, likely separate action. 
+            // But we can assume saving makes it active or keeps it active.
+        });
+        
+        await loadPolicies(); // Refresh
+        
+        setShowLoadingDialog(false);
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 3000);
+    } catch (error) {
+        console.error("Failed to save policy", error);
+        setShowLoadingDialog(false);
+        // Add error toast handling here if needed
+    }
   };
 
   const handleReset = () => {
-    setSeverityWeight(0.85);
-    setAgingRate(15);
-    setEnableAging(true);
-    setDistressDecay(0.5);
+    if (selectedPolicyId) {
+        const original = policies.find(p => p.id === selectedPolicyId);
+        if (original) selectPolicy(original);
+    }
   };
-
-  // Policy options
-  const policies = [
-    {
-      id: "ADAPTIVE",
-      name: "ADAPTIVE (Default)",
-      description: "Standard operating procedure",
-      active: true,
-      alert: false,
-    },
-    {
-      id: "STATIC_TRIAGE_V1",
-      name: "STATIC_TRIAGE_V1",
-      description: "Legacy fixed-weight logic",
-      active: false,
-      alert: false,
-    },
-    {
-      id: "CRISIS_OVERRIDE",
-      name: "CRISIS_OVERRIDE",
-      description: "Mass casualty event protocol",
-      active: false,
-      alert: true,
-    },
-  ];
 
   return (
     <div className="min-h-screen bg-neutral-bg-main p-8 font-sans">
@@ -132,7 +161,7 @@ const PolicyConfig = () => {
           <Card className="overflow-hidden border-none shadow-sm bg-white py-0 gap-0">
             <div className="flex items-center justify-between p-6 pb-2">
               <h2 className="text-lg font-bold text-neutral-text-primary">
-                Active Policies
+                Available Policies
               </h2>
               <button className="text-brand-primary hover:bg-brand-primary/10 rounded-full p-1 transition-colors">
                 <Plus size={20} />
@@ -144,25 +173,25 @@ const PolicyConfig = () => {
                 <div
                   key={policy.id}
                   onClick={() => handlePolicyChange(policy.id)}
-                  className={`relative flex cursor-pointer items-center justify-between rounded-xl border p-4 transition-all duration-200 ${activePolicy === policy.id
+                  className={`relative flex cursor-pointer items-center justify-between rounded-xl border p-4 transition-all duration-200 ${selectedPolicyId === policy.id
                       ? "border-brand-primary/30 bg-alert-bg-sky shadow-sm ring-1 ring-brand-primary/20"
                       : "border-transparent hover:bg-neutral-bg-main"
                     }`}
                 >
                   <div className="flex items-center gap-3">
                     <div
-                      className={`flex h-5 w-5 items-center justify-center rounded-full border transition-colors ${activePolicy === policy.id
+                      className={`flex h-5 w-5 items-center justify-center rounded-full border transition-colors ${selectedPolicyId === policy.id
                           ? "border-brand-primary bg-brand-primary"
                           : "border-neutral-text-muted bg-transparent"
                         }`}
                     >
-                      {activePolicy === policy.id && (
+                      {selectedPolicyId === policy.id && (
                         <div className="h-2 w-2 rounded-full bg-white" />
                       )}
                     </div>
                     <div>
                       <p
-                        className={`font-semibold ${activePolicy === policy.id ? "text-brand-primary" : "text-neutral-text-primary"}`}
+                        className={`font-semibold ${selectedPolicyId === policy.id ? "text-brand-primary" : "text-neutral-text-primary"}`}
                       >
                         {policy.name}
                       </p>
@@ -172,13 +201,13 @@ const PolicyConfig = () => {
                     </div>
                   </div>
 
-                  {activePolicy === policy.id && !policy.alert && (
+                  {policy.isActive && !policy.isAlertMode && (
                     <div className="rounded-full bg-brand-primary text-white p-0.5">
                       <Check size={14} strokeWidth={3} />
                     </div>
                   )}
 
-                  {policy.alert && (
+                  {policy.isAlertMode && (
                     <AlertTriangle className="text-severity-urgent" size={18} />
                   )}
                 </div>
@@ -395,35 +424,18 @@ const PolicyConfig = () => {
         open={showConfirmDialog}
         onOpenChange={setShowConfirmDialog}
         title="Confirm Policy Changes"
-        description="Are you sure you want to save these policy changes?"
-        highlightedText={activePolicy}
+        description={`Are you sure you want to save changes to ${policies.find(p => p.id === selectedPolicyId)?.name || "this policy"}?`}
+        highlightedText={policies.find(p => p.id === selectedPolicyId)?.name}
         impactText="Changes will propagate to 12 connected triage nodes within 30 seconds."
         confirmLabel="Save Policy"
         cancelLabel="Cancel"
         onConfirm={handleConfirmSave}
         variant="warning"
       />
-
-      {/* Loading Dialog */}
-      <LoadingDialog
-        open={showLoadingDialog}
-        title="Applying Policy Changes"
-        description="Propagating changes to all connected triage nodes. This may take up to 30 seconds..."
-      />
-
-      {/* Success Toast */}
-      {showToast && (
-        <div className="fixed top-4 right-4 z-50">
-          <SuccessToast
-            title="Policy Saved Successfully"
-            description="Changes have been applied to all triage nodes."
-            variant="success"
-            onClose={() => setShowToast(false)}
-          />
-        </div>
-      )}
     </div>
   );
 };
+
+
 
 export default PolicyConfig;

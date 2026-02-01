@@ -36,6 +36,12 @@ export function HospitalSelector({
 }: HospitalSelectorProps) {
     const [open, setOpen] = React.useState(false);
     const [searchQuery, setSearchQuery] = React.useState("");
+    const [mounted, setMounted] = React.useState(false);
+
+    // Prevent SSR rendering to avoid hydration mismatch with Radix UI IDs
+    React.useEffect(() => {
+        setMounted(true);
+    }, []);
 
     const filteredHospitals = React.useMemo(() => {
         if (!searchQuery) return hospitals;
@@ -53,6 +59,24 @@ export function HospitalSelector({
         setOpen(false);
         setSearchQuery("");
     };
+
+    // Render placeholder during SSR to avoid hydration mismatch
+    if (!mounted) {
+        return (
+            <Button
+                variant="outline"
+                className={cn(
+                    "w-full justify-between bg-background hover:bg-accent transition-colors",
+                    className,
+                )}
+            >
+                <span className="truncate">
+                    {selectedHospital ? selectedHospital.name : placeholder}
+                </span>
+                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+            </Button>
+        );
+    }
 
     return (
         <Popover open={open} onOpenChange={setOpen}>

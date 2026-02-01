@@ -26,6 +26,13 @@ const mockStats = {
   surgeActive: false
 }
 
+// Mock ApiClient
+vi.mock('@/lib/api-client', () => ({
+  getAnalytics: vi.fn().mockResolvedValue([
+    { timestamp: "10:00", waiting: 50, activePatients: 20 }
+  ])
+}))
+
 // Mock context with stable stats reference
 vi.mock('@/app/Components/Context/SimulationContext', () => ({
   useSimulation: () => ({

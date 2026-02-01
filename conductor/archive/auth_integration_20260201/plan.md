@@ -38,7 +38,7 @@ Implement the "Logged Out" state/overlay for protected dashboard routes.
 ## Phase 4: Final Verification and Polish
 Final audit of test coverage and UI consistency.
 
-- [~] Task: Comprehensive Test Suite Run
-    - [ ] Run all tests and ensure coverage for new auth logic is >80%
-    - [ ] Fix any regressions in existing component tests
-- [ ] Task: Conductor - User Manual Verification 'Phase 4: Final Verification and Polish' (Protocol in workflow.md)
+- [x] Task: Comprehensive Test Suite Run
+    - [x] Run all tests and ensure coverage for new auth logic is >80%
+    - [x] Fix any regressions in existing component tests
+- [x] Task: Conductor - User Manual Verification 'Phase 4: Final Verification and Polish' (Protocol in workflow.md)

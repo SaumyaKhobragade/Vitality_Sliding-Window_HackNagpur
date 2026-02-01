@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Download,
@@ -34,53 +34,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-
-// Mock data
-const mockDecisions: RedirectionDecision[] = [
-  {
-    id: "1",
-    patientId: "8a7f...9b2",
-    fromHospital: "General Hosp",
-    toHospital: "City Clinic",
-    decisionType: "safe",
-    reason: "Bed Availability < 5%",
-    time: "10m ago",
-    status: "completed",
-  },
-  {
-    id: "2",
-    patientId: "3b2c...1a4",
-    fromHospital: "Memorial",
-    toHospital: "County",
-    decisionType: "conditional",
-    reason: "Specialist Req",
-    time: "25m ago",
-    status: "pending",
-    confidenceScore: 92,
-    policyApplied: "POL-2023-A (Trauma Divert)",
-    constraints: ["Specialist: Neurologist", "Transport < 20m"],
-  },
-  {
-    id: "3",
-    patientId: "c4d1...8e2",
-    fromHospital: "Westside",
-    toHospital: "Trauma Ctr",
-    decisionType: "standard",
-    reason: "Load Balancing",
-    time: "42m ago",
-    status: "failed",
-  },
-  {
-    id: "4",
-    patientId: "9b2a...3f1",
-    fromHospital: "St. Mary's",
-    toHospital: "North Clinic",
-    decisionType: "safe",
-    reason: "Overflow",
-    time: "1h ago",
-    status: "completed",
-  },
-];
+import * as ApiClient from "@/lib/api-client";
+import { useSimulation } from "@/app/Components/Context/SimulationContext";
+import { useRealtime } from "@/app/Components/Context/RealtimeContext";
 
 // Stats Card Component
 const StatsCard = ({
@@ -164,7 +120,7 @@ const StatusBadge = ({ status }: { status: string }) => {
     },
   };
 
-  const { icon: Icon, color, label } = config[status as keyof typeof config];
+  const { icon: Icon, color, label } = config[status as keyof typeof config] || config.pending;
 
   return (
     <div className="flex items-center gap-2">
@@ -175,22 +131,64 @@ const StatusBadge = ({ status }: { status: string }) => {
 };
 
 const DecisionMonitorPage = () => {
-  const [expandedRow, setExpandedRow] = useState<string | null>("2");
+  const [decisions, setDecisions] = useState<RedirectionDecision[]>([]);
+  const [expandedRow, setExpandedRow] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("any");
   const [decisionTypeFilter, setDecisionTypeFilter] = useState("all");
+  const [loading, setLoading] = useState(true);
+  const { hospitals } = useSimulation();
+  const { socketService } = useRealtime();
+
+  const fetchDecisions = useCallback(async () => {
+    setLoading(true);
+    try {
+        const data = await ApiClient.getRedirectionDecisions();
+        setDecisions(data);
+    } catch (error) {
+        console.error("Failed to load decisions", error);
+    } finally {
+        setLoading(false);
+    }
+  }, []);
+
+  // Initial fetch
+  useEffect(() => {
+    fetchDecisions();
+  }, [fetchDecisions]);
+
+  // Subscribe to SSE for real-time redirection events
+  useEffect(() => {
+    socketService.subscribe("/topic/events", (event: any) => {
+      // Refetch decisions when redirection events occur
+      if (event.type === "REDIRECTION" || event.type === "PATIENT_REDIRECTED") {
+        fetchDecisions();
+      }
+    });
+
+    return () => {
+      socketService.unsubscribe("/topic/events");
+    };
+  }, [socketService, fetchDecisions]);
 
   const handleToggleRow = (id: string) => {
     setExpandedRow(expandedRow === id ? null : id);
   };
 
+  const getHospitalName = (id: string) => {
+      return hospitals[id]?.name || id;
+  };
+
   // Filter data based on search and filters
-  const filteredDecisions = mockDecisions.filter((decision) => {
+  const filteredDecisions = decisions.filter((decision) => {
+    const fromName = getHospitalName(decision.fromHospital);
+    const toName = getHospitalName(decision.toHospital);
+    
     const matchesSearch =
       searchQuery === "" ||
       decision.patientId.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      decision.fromHospital.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      decision.toHospital.toLowerCase().includes(searchQuery.toLowerCase());
+      fromName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      toName.toLowerCase().includes(searchQuery.toLowerCase());
 
     const matchesStatus =
       statusFilter === "any" || decision.status === statusFilter;
@@ -201,6 +199,7 @@ const DecisionMonitorPage = () => {
 
     return matchesSearch && matchesStatus && matchesDecisionType;
   });
+
   return (
     <div className="min-h-screen bg-background">
       <main className="max-w-360 mx-auto px-6 py-8 flex flex-col gap-8">
@@ -219,8 +218,8 @@ const DecisionMonitorPage = () => {
               <Download className="h-4 w-4" />
               Export Log
             </Button>
-            <Button className="gap-2 shadow-lg shadow-primary/20">
-              <RefreshCw className="h-4 w-4" />
+            <Button className="gap-2 shadow-lg shadow-primary/20" onClick={fetchDecisions} disabled={loading}>
+              <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
               Live Refresh
             </Button>
           </div>
@@ -230,23 +229,23 @@ const DecisionMonitorPage = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <StatsCard
             title="Total Redirects Today"
-            value={142}
+            value={decisions.length}
             icon={Route}
-            trend="+12%"
-            trendColor="green"
+            trend="-"
+            trendColor="neutral"
           />
           <StatsCard
             title="Avg Wait Saved"
-            value="45 min"
+            value="-"
             icon={Timer}
-            trend="↑ 5 min"
-            trendColor="green"
+            trend="-"
+            trendColor="neutral"
           />
           <StatsCard
             title="Failed Redirects"
-            value={3}
+            value={decisions.filter(d => d.status === "failed").length}
             icon={AlertTriangle}
-            trend="0 change"
+            trend="-"
             trendColor="neutral"
           />
         </div>
@@ -303,6 +302,16 @@ const DecisionMonitorPage = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
+                {loading && (
+                    <TableRow>
+                        <TableCell colSpan={7} className="text-center py-8">Loading decisions...</TableCell>
+                    </TableRow>
+                )}
+                {!loading && filteredDecisions.length === 0 && (
+                    <TableRow>
+                        <TableCell colSpan={7} className="text-center py-8">No decisions found.</TableCell>
+                    </TableRow>
+                )}
                 {filteredDecisions.map((decision) => (
                   <React.Fragment key={decision.id}>
                     {/* Main Row */}
@@ -314,17 +323,17 @@ const DecisionMonitorPage = () => {
                     >
                       <TableCell>
                         <span className="font-mono text-sm text-primary font-medium bg-primary/5 px-2 py-1 rounded">
-                          {decision.patientId}
+                          {decision.patientId.substring(0, 8)}...
                         </span>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2 text-sm text-foreground">
                           <span className="font-medium">
-                            {decision.fromHospital}
+                            {getHospitalName(decision.fromHospital)}
                           </span>
                           <ArrowRight className="h-4 w-4 text-muted-foreground" />
                           <span className="font-medium">
-                            {decision.toHospital}
+                            {getHospitalName(decision.toHospital)}
                           </span>
                         </div>
                       </TableCell>
@@ -338,7 +347,7 @@ const DecisionMonitorPage = () => {
                       </TableCell>
                       <TableCell>
                         <span className="text-sm text-muted-foreground">
-                          {decision.time}
+                          {new Date(decision.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </span>
                       </TableCell>
                       <TableCell>
@@ -456,7 +465,7 @@ const DecisionMonitorPage = () => {
               </span>{" "}
               of{" "}
               <span className="font-medium text-foreground">
-                {mockDecisions.length}
+                {decisions.length}
               </span>{" "}
               decisions
             </p>

@@ -16,6 +16,7 @@ Vitality is a comprehensive hospital management dashboard designed to provide re
 - **Live Dashboards:** Interactive charts and visualizations for Patient Flow and Hospital Status.
 - **Simulation Engine:** Advanced controls for chaos engineering, allowing users to stress-test hospital operations and perform live impact analysis.
 - **Unified Alerting System:** Centralized management of operational alerts to ensure rapid response to bottlenecks or emergencies.
+- **Secure Access:** Role-aware authentication ensuring personalized views and secure access to hospital data.
 
 ## Value Proposition
 Vitality solves critical hospital management challenges by reducing patient wait times and bottlenecks through real-time monitoring, optimizing resource allocation during emergencies, and providing a single source of truth for complex hospital data systems.

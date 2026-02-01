@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Inter } from "next/font/google";
 import "./globals.css";
-import { SimulationProvider } from "./Components/Context/SimulationContext";
 import { Toaster } from "sonner";
 import { AuthProvider } from "./Context/AuthContext";
 import { createClient } from "@/supabase/server";
@@ -54,7 +53,7 @@ export default async function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <AuthProvider initialSession={authSession} initialUser={user}>
-          <SimulationProvider>{children}</SimulationProvider>
+          {children}
         </AuthProvider>
         <Toaster position="top-right" richColors />
       </body>

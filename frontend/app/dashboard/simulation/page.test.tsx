@@ -4,12 +4,12 @@ import SimulationPage from './page'
 import * as ApiClient from '@/lib/api-client'
 
 // Mock ApiClient
-vi.mock('@/lib/api-client', () => ({
-  initCity: vi.fn(),
-  triggerSurge: vi.fn(),
-  getCityStats: vi.fn().mockResolvedValue({}),
-  getHospital: vi.fn(),
-}))
+vi.mock("@/lib/api-client", () => ({
+  initCity: vi.fn().mockResolvedValue("City Initialized"),
+  triggerSurge: vi.fn().mockResolvedValue("Surge Triggered"),
+  getSimulationHistory: vi.fn().mockResolvedValue([])
+}));
+
 
 // Mock SimulationContext
 vi.mock('@/app/Components/Context/SimulationContext', () => ({

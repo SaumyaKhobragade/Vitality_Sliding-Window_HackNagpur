@@ -2,43 +2,60 @@ package com.example.Vitality.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.filter.CorsFilter;
+import org.springframework.web.servlet.config.annotation.CorsRegistry;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+
+import java.util.Arrays;
 
 /**
- * CORS Configuration to allow cross-origin requests from Next.js frontend.
- * Essential for WebSocket handshake and REST API calls.
- * 
- * Security Note: In production, replace allowedOriginPatterns("*") with specific origins.
+ * Comprehensive CORS Configuration for both REST APIs and WebSocket connections.
+ * Uses dual approach: CorsFilter for WebSocket/SockJS + WebMvcConfigurer for REST.
  */
 @Configuration
-public class CorsConfig {
+public class CorsConfig implements WebMvcConfigurer {
 
     /**
-     * Configure CORS filter to allow all origins, methods, and headers.
-     * Critical for WebSocket SockJS handshake to succeed.
+     * CorsFilter bean for WebSocket/SockJS handshake requests.
+     * This is critical for SockJS to work properly.
      */
     @Bean
+    @Order(Ordered.HIGHEST_PRECEDENCE)
     public CorsFilter corsFilter() {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         CorsConfiguration config = new CorsConfiguration();
         
-        // Allow credentials (cookies, authorization headers)
-        config.setAllowCredentials(true);
-        
-        // Allow all origins (replace with specific domains in production)
-        config.addAllowedOriginPattern("*");
+        // Allow all origins for development
+        config.setAllowedOriginPatterns(Arrays.asList("*"));
         
         // Allow all headers
         config.addAllowedHeader("*");
         
-        // Allow all HTTP methods (GET, POST, PUT, DELETE, etc.)
+        // Allow all HTTP methods
         config.addAllowedMethod("*");
         
-        // Apply CORS configuration to all endpoints
+        // Note: Cannot use setAllowCredentials(true) with allowedOriginPatterns("*")
+        // If you need credentials, specify exact origins instead
+        
+        // Apply to all endpoints
         source.registerCorsConfiguration("/**", config);
         
         return new CorsFilter(source);
+    }
+
+    /**
+     * WebMvcConfigurer for REST API CORS.
+     */
+    @Override
+    public void addCorsMappings(CorsRegistry registry) {
+        registry.addMapping("/**")
+                .allowedOriginPatterns("*")
+                .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH")
+                .allowedHeaders("*")
+                .maxAge(3600);
     }
 }

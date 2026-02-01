@@ -23,6 +23,7 @@ import { Chart } from "react-chartjs-2";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { useSimulation } from "@/app/Components/Context/SimulationContext";
+import * as ApiClient from "@/lib/api-client";
 
 ChartJS.register(
     CategoryScale,
@@ -36,25 +37,53 @@ ChartJS.register(
 
 const PatientFlowChart = () => {
     const [history, setHistory] = useState<{ time: string, waiting: number, active: number }[]>([]);
-    const { stats, refreshStats } = useSimulation();
+    const { stats, refreshStats, simStats, isRunning } = useSimulation();
     const [refreshing, setRefreshing] = useState(false);
+    const [mounted, setMounted] = useState(false);
+    const [lastUpdate, setLastUpdate] = useState(0);
+
+    // Prevent hydration mismatch
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     useEffect(() => {
-        if (!stats) return;
+        // Initial fetch from API only if no simulation is running
+        if (!isRunning && !simStats) {
+            ApiClient.getAnalytics().then(data => {
+                const mapped = data.map(r => ({
+                    time: r.timestamp,
+                    waiting: r.waiting,
+                    active: r.activePatients
+                }));
+                setHistory(mapped);
+            }).catch(err => console.error("Failed to load analytics history", err));
+        }
+    }, []);
 
-        const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    useEffect(() => {
+        // Use simStats when simulation is running, otherwise use stats (from backend)
+        const currentStats = isRunning && simStats ? simStats : (!isRunning ? stats : null);
+        if (!currentStats) return;
+
+        const now = Date.now();
+        // Update at most once per second to avoid overwhelming the chart
+        if (now - lastUpdate < 1000) return;
+        setLastUpdate(now);
+
+        const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
         
         setHistory(prev => {
             const newPoint = { 
-                time: now, 
-                waiting: stats.totalPatientsWaiting, 
-                active: stats.totalDoctorsActive 
+                time: timeStr, 
+                waiting: currentStats.totalPatientsWaiting || 0, 
+                active: currentStats.totalDoctorsActive || 0
             };
             const newHistory = [...prev, newPoint];
             if (newHistory.length > 20) newHistory.shift();
             return newHistory;
         });
-    }, [stats]);
+    }, [stats, simStats, lastUpdate, isRunning]);
 
     const handleRefresh = async () => {
         setRefreshing(true);
@@ -82,6 +111,27 @@ const PatientFlowChart = () => {
     };
 
     const latestWaiting = history.length > 0 ? history[history.length - 1].waiting : 0;
+
+    // Prevent hydration mismatch by not rendering interactive elements until mounted
+    if (!mounted) {
+        return (
+            <div className="lg:col-span-2 bg-surface-light dark:bg-surface-dark rounded-xl border border-border-light dark:border-border-dark p-6 shadow-sm">
+                <div className="flex items-center justify-between mb-6">
+                    <div>
+                        <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                            Real-Time Flow
+                        </h3>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                            Patients Waiting vs Active Doctors
+                        </p>
+                    </div>
+                </div>
+                <div className="relative h-64 w-full flex items-center justify-center">
+                    <div className="text-gray-400">Loading chart...</div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="lg:col-span-2 bg-surface-light dark:bg-surface-dark rounded-xl border border-border-light dark:border-border-dark p-6 shadow-sm">
@@ -144,7 +194,7 @@ const PatientFlowChart = () => {
                     )}
                 </div>
             </div>
-            <div className="flex items-center justify-center gap-6 mt-4">
+            <div className="flex items-center justify-center gap-6 mt-8">
                 <div className="flex items-center gap-2">
                     <span className="w-3 h-3 bg-primary rounded-full"></span>
                     <span className="text-sm text-gray-600 dark:text-gray-300">

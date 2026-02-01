@@ -1,3 +1,5 @@
+"use client";
+
 import React from "react";
 import DashboardStats from "../Components/Common/DashboardStats";
 import PatientFlowChart from "../Components/Charts/PatientFlowChart";
@@ -5,7 +7,7 @@ import OperationsAlerts from "../Components/alerts/OperationsAlerts";
 import HospitalStatusList from "../Components/alerts/HospitalStatusList";
 import { Filter, ArrowUpDown } from "lucide-react";
 
-const page = () => {
+const DashboardPage = () => {
   return (
     <div className="bg-background-light dark:bg-background-dark font-body text-text-light dark:text-text-dark antialiased transition-colors duration-200">
       <main className="flex-1 overflow-y-auto p-6 bg-background-light dark:bg-background-dark transition-colors duration-200">
@@ -49,4 +51,4 @@ const page = () => {
   );
 };
 
-export default page;
+export default DashboardPage;

@@ -9,7 +9,13 @@ vi.mock('@/app/Components/Context/SimulationContext', () => ({
       totalHospitals: 5,
       totalPatientsWaiting: 123,
       totalDoctorsActive: 45,
-      surgeActive: true
+      surgeActive: true,
+      recentRedirections: 7
+    },
+    hospitals: {
+      "h1": { id: "h1", totalQueueSize: 80, maxCapacity: 100 }, // 80% (Overloaded)
+      "h2": { id: "h2", totalQueueSize: 20, maxCapacity: 100 }, // 20%
+      "h3": { id: "h3", totalQueueSize: 90, maxCapacity: 100 }, // 90% (Overloaded)
     },
     isConnected: true
   })
@@ -20,11 +26,15 @@ describe('DashboardStats', () => {
     render(<DashboardStats />)
     
     // Check for "Patients Waiting" value from mock context (123)
-    // The current hardcoded value is 234
     expect(screen.getByText('123')).toBeDefined()
     
-    // Check for "Active Treatments" value (mapped to doctors for now) (45)
-    // The current hardcoded value is 89
+    // Check for "Active Doctors" value (45)
     expect(screen.getByText('45')).toBeDefined()
+
+    // Check for "Overloaded" count (2 hospitals > 70%)
+    expect(screen.getByText('2')).toBeDefined()
+
+    // Check for "Redirections" (7)
+    expect(screen.getByText('7')).toBeDefined()
   })
 })

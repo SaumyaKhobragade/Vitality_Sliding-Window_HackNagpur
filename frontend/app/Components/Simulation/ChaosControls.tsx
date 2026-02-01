@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { DISTRESS_FREQUENCIES, POLICY_OPTIONS } from "@/db/mockdata";
+import { DISTRESS_FREQUENCIES, POLICY_OPTIONS } from "@/lib/constants";
 
 interface ChaosControlsProps {
     patientSurge: number;
@@ -36,6 +36,7 @@ interface ChaosControlsProps {
     policyLogic: string;
     setPolicyLogic: (val: string) => void;
     onTriggerSurge?: () => void;
+    onTriggerStaffDropout?: () => void;
 }
 
 export function ChaosControls({
@@ -48,6 +49,7 @@ export function ChaosControls({
     policyLogic,
     setPolicyLogic,
     onTriggerSurge,
+    onTriggerStaffDropout,
 }: ChaosControlsProps) {
     return (
         <section className="space-y-4">
@@ -137,6 +139,13 @@ export function ChaosControls({
                                 className="[&>div>div]:bg-red-500 [&>div:last-child]:border-red-500" // Override colors
                             />
                         </div>
+                        <Button
+                            variant="ghost"
+                            onClick={onTriggerStaffDropout}
+                            className="w-full bg-red-50 text-red-700 hover:bg-red-100 hover:text-red-800 h-9 text-xs font-semibold uppercase tracking-wide mt-2"
+                        >
+                            <UserMinus className="w-3 h-3 mr-1.5" /> Apply Dropout
+                        </Button>
                     </CardContent>
                 </Card>
 

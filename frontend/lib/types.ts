@@ -41,6 +41,7 @@ export interface CityStats {
   totalPatientsWaiting: number;
   totalDoctorsActive: number;
   surgeActive: boolean;
+  recentRedirections: number; // Last 15 minutes
 }
 
 export interface Treatment {
@@ -53,6 +54,18 @@ export interface Treatment {
     progress: number;
     icon: React.ReactNode;
     color: string;
+}
+
+export interface TreatmentRecord {
+    id: string;
+    patientId: string;
+    hospitalId: string;
+    type: string;
+    doctorName: string;
+    location: string;
+    startedAt: string;
+    progress: number;
+    colorCode: string;
 }
 
 export interface StatCard {
@@ -105,5 +118,38 @@ export interface User {
 export interface Session {
   user: User;
   accessToken?: string;
+}
+
+// --- New Interfaces matching DB Schema ---
+
+export interface DistressEvent {
+  id: string;
+  hospitalId: string;
+  type: 'COLLAPSE' | 'AGITATION' | 'SEIZURE' | 'PROLONGED' | 'OTHER';
+  confidenceScore: number;
+  severityScore: number;
+  locationDetail?: string;
+  cameraFeedId?: string;
+  detectedAt: string; // ISO string
+  status: 'active' | 'confirmed' | 'dismissed' | 'resolved';
+  queuePositionOriginal?: number;
+  queuePositionNew?: number;
+  recommendedAction?: string;
+  resolutionNotes?: string;
+  resolvedBy?: string;
+}
+
+export interface Policy {
+  id: string;
+  name: string;
+  description?: string;
+  isActive: boolean;
+  isAlertMode: boolean;
+  severityWeight: number;
+  agingRateMinutes: number;
+  enableAging: boolean;
+  distressDecay: number;
+  updatedAt: string;
+  updatedBy?: string;
 }
 

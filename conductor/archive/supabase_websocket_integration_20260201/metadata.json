@@ -1,0 +1,8 @@
+{
+  "track_id": "supabase_websocket_integration_20260201",
+  "type": "feature",
+  "status": "new",
+  "created_at": "2026-02-01T03:51:00Z",
+  "updated_at": "2026-02-01T03:51:00Z",
+  "description": "integrate the supabase db to fetch all the data from db instead of hardcoding it. make proper api routes to fetch data. keep a note of the websocket integration for fetching the data. also upgrade the web socket implementation to be used on the proper pages, where its needed not on all pages"
+}

@@ -1,10 +1,19 @@
-import { PATIENT_FLOW_DATA } from "@/db/mockdata";
 import { PatientFlowRecord } from "./types";
 
 export const getPatientFlowData = async (): Promise<PatientFlowRecord[]> => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve(PATIENT_FLOW_DATA);
-    }, 1000); // Simulate 1s delay
-  });
+  try {
+    // If running server-side (e.g. during build or server component), use absolute URL or mock
+    if (typeof window === 'undefined') {
+       return [];
+    }
+    
+    const res = await fetch("/api/analytics");
+    if (!res.ok) {
+        throw new Error("Failed to fetch analytics");
+    }
+    return await res.json();
+  } catch (error) {
+    console.error("Error fetching patient flow data:", error);
+    return [];
+  }
 };

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import {
     Building2,
     TrendingUp,
@@ -22,90 +23,14 @@ import { ColumnDef } from "@tanstack/react-table";
 import { DataTable } from "@/app/Components/Common/DataTable";
 import { SearchBar } from "@/app/Components/Common/SearchBar";
 import Image from "next/image";
-import { Patient, Treatment, StatCard } from "@/lib/types";
+import { Patient, Treatment, StatCard, TreatmentRecord, Hospital } from "@/lib/types";
 import { PatientContextMenu } from "@/app/Components/dashboard/PatientContextMenu";
 import { ConfirmationDialog } from "@/app/Components/dashboard/ConfirmationDialog";
 import { DataTooltip } from "@/app/Components/dashboard/DataTooltip";
 import { SuccessToast } from "@/app/Components/dashboard/SuccessToast";
-
-// Hardcoded data
-const patientsData: Patient[] = [
-    {
-        id: "#8X29-A1",
-        baseSeverity: 9,
-        arrivalTime: Date.now() - 72 * 60000,
-        targetHospitalId: "Hosp-A",
-        distressScore: 85,
-        treating: false,
-        dynamicPriority: 98.5,
-        severity: 9,
-        waitTime: "72 min",
-        status: "Nearing Threshold",
-        priorityScore: 98.5,
-    },
-    {
-        id: "#9Y33-B2",
-        baseSeverity: 7,
-        arrivalTime: Date.now() - 45 * 60000,
-        targetHospitalId: "Hosp-A",
-        distressScore: 70,
-        treating: false,
-        dynamicPriority: 82.1,
-        severity: 7,
-        waitTime: "45 min",
-        status: "Stable",
-        priorityScore: 82.1,
-    },
-    {
-        id: "#3K11-C9",
-        baseSeverity: 8,
-        arrivalTime: Date.now() - 38 * 60000,
-        targetHospitalId: "Hosp-B",
-        distressScore: 65,
-        treating: false,
-        dynamicPriority: 21.2,
-        severity: 8,
-        waitTime: "38 min",
-        status: "Stable",
-        priorityScore: 21.2,
-    },
-];
-
-const treatmentsData: Treatment[] = [
-    {
-        id: "1",
-        patientId: "#4421",
-        type: "Trauma",
-        doctor: "Dr. Emily Chen",
-        location: "Surgery Unit A",
-        elapsed: "2h 15m elapsed",
-        progress: 75,
-        icon: <PersonStanding className="h-5 w-5" />,
-        color: "purple",
-    },
-    {
-        id: "2",
-        patientId: "#3120",
-        type: "Cardiac",
-        doctor: "Dr. James Wilson",
-        location: "ICU Bed 4",
-        elapsed: "45m elapsed",
-        progress: 30,
-        icon: <Heart className="h-5 w-5" />,
-        color: "blue",
-    },
-    {
-        id: "3",
-        patientId: "#5591",
-        type: "Orthopedic",
-        doctor: "Dr. Sarah W.",
-        location: "Exam Room 2",
-        elapsed: "10m elapsed",
-        progress: 15,
-        icon: <Stethoscope className="h-5 w-5" />,
-        color: "teal",
-    },
-];
+import * as ApiClient from "@/lib/api-client";
+import { useRealtime } from "@/app/Components/Context/RealtimeContext";
+import { useSimulation } from "@/app/Components/Context/SimulationContext";
 
 // Helper functions
 const getSeverityColor = (severity: number) => {
@@ -146,7 +71,18 @@ const getIconBgColor = (color: string) => {
     );
 };
 
-const QueueDetailsPage = () => {
+const QueueDetailsContent = () => {
+    const searchParams = useSearchParams();
+    const hospitalId = searchParams.get("hospital");
+
+    const [patients, setPatients] = useState<Patient[]>([]);
+    const [treatments, setTreatments] = useState<Treatment[]>([]);
+    const [hospital, setHospital] = useState<Hospital | null>(null);
+
+    // SSE context for real-time updates
+    const { socketService, isConnected } = useRealtime();
+    const { hospitals } = useSimulation();
+
     // State for dialogs and toasts
     const [confirmDialog, setConfirmDialog] = useState<{
         open: boolean;
@@ -160,11 +96,84 @@ const QueueDetailsPage = () => {
     });
     const [isLoading, setIsLoading] = useState(false);
 
+    const fetchData = useCallback(async () => {
+        try {
+            const [patientsData, treatmentsData, hospitalData] = await Promise.all([
+                ApiClient.getPatientQueue(hospitalId || undefined),
+                ApiClient.getTreatments(hospitalId || undefined),
+                hospitalId ? ApiClient.getHospital(hospitalId) : null
+            ]);
+
+            setPatients(patientsData);
+            
+            // Map treatments
+            const mappedTreatments = treatmentsData.map(record => {
+                let icon = <Stethoscope className="h-5 w-5" />;
+                if (record.type === "Trauma") icon = <PersonStanding className="h-5 w-5" />;
+                if (record.type === "Cardiac") icon = <Heart className="h-5 w-5" />;
+                
+                const start = new Date(record.startedAt).getTime();
+                const diff = Math.max(0, Date.now() - start);
+                const minutes = Math.floor(diff / 60000);
+                const elapsed = minutes > 60 ? `${Math.floor(minutes/60)}h ${minutes%60}m elapsed` : `${minutes}m elapsed`;
+
+                return {
+                    id: record.id,
+                    patientId: record.patientId, 
+                    type: record.type,
+                    doctor: record.doctorName,
+                    location: record.location,
+                    elapsed,
+                    progress: record.progress,
+                    icon,
+                    color: record.colorCode
+                };
+            });
+            setTreatments(mappedTreatments);
+            
+            if (hospitalData) setHospital(hospitalData);
+
+        } catch (error) {
+            console.error("Failed to fetch queue details", error);
+        }
+    }, [hospitalId]);
+
+    // Initial fetch
+    useEffect(() => {
+        fetchData();
+    }, [fetchData]);
+
+    // Subscribe to SSE for real-time updates
+    useEffect(() => {
+        // When hospital data updates via SSE, refresh if it's our hospital
+        socketService.subscribe("/topic/hospital", (updatedHospital: Hospital) => {
+            if (!hospitalId || updatedHospital.id === hospitalId) {
+                setHospital(updatedHospital);
+                // Refetch patients when hospital updates
+                fetchData();
+            }
+        });
+
+        // Listen for events that might affect our queue
+        socketService.subscribe("/topic/events", (event: any) => {
+            if (!hospitalId || event.hospitalId === hospitalId) {
+                // Refetch on patient-related events
+                if (["PATIENT_ADMITTED", "PATIENT_DISCHARGED", "DISTRESS_DETECTED"].includes(event.type)) {
+                    fetchData();
+                }
+            }
+        });
+
+        return () => {
+            socketService.unsubscribe("/topic/hospital");
+            socketService.unsubscribe("/topic/events");
+        };
+    }, [socketService, hospitalId, fetchData]);
+
     const handlePatientAction = (action: string, patientId: string) => {
         if (action === "discharge" || action === "fast-track") {
             setConfirmDialog({ open: true, action, patientId });
         } else {
-            // Handle other actions directly
             console.log(`${action} for patient ${patientId}`);
         }
     };
@@ -189,7 +198,7 @@ const QueueDetailsPage = () => {
             accessorKey: "id",
             header: "Patient ID",
             cell: ({ row }) => (
-                <span className="font-mono font-medium">{row.getValue("id")}</span>
+                <span className="font-mono font-medium">{(row.getValue("id") as string).substring(0, 8)}</span>
             ),
         },
         {
@@ -210,8 +219,10 @@ const QueueDetailsPage = () => {
             accessorKey: "waitTime",
             header: "Wait Time",
             cell: ({ row }) => {
-                const waitTime = row.getValue("waitTime") as string;
-                const isLong = waitTime.includes("72");
+                const arrival = row.original.arrivalTime;
+                const minutes = Math.floor((Date.now() - arrival) / 60000);
+                const waitTime = `${minutes} min`;
+                const isLong = minutes > 60;
                 return (
                     <span
                         className={`font-medium ${isLong ? "text-red-600 dark:text-red-400" : ""}`}
@@ -290,40 +301,30 @@ const QueueDetailsPage = () => {
     const statsCards: StatCard[] = [
         {
             title: "Queue Capacity",
-            value: "45",
-            subtitle: "/ 50",
+            value: patients.length.toString(),
+            subtitle: hospital ? `/ ${hospital.maxCapacity}` : "/ --",
             badge: {
-                text: "High Load",
-                color: "bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400",
+                text: "Load",
+                color: "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400",
             },
             content: (
                 <>
                     <div className="flex items-end justify-between mb-2">
                         <div>
-                            <span className="text-4xl font-bold tracking-tight">45</span>
+                            <span className="text-4xl font-bold tracking-tight">{patients.length}</span>
                             <span className="text-lg text-muted-foreground font-medium">
-                                / 50
+                                {hospital ? `/ ${hospital.maxCapacity}` : ""}
                             </span>
                         </div>
-                        <div className="text-right">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                                Oldest Wait
-                            </p>
-                            <p className="text-xl font-bold text-red-600 dark:text-red-400 flex items-center justify-end gap-1">
-                                <AlertTriangle className="h-4 w-4" />
-                                72 mins
-                            </p>
-                        </div>
                     </div>
+                    {hospital && hospital.maxCapacity > 0 && (
                     <div className="relative h-3 w-full rounded-full bg-accent overflow-hidden">
                         <div
                             className="absolute top-0 left-0 h-full rounded-full bg-linear-to-r from-blue-500 via-amber-400 to-red-500"
-                            style={{ width: "90%" }}
+                            style={{ width: `${Math.min((patients.length / hospital.maxCapacity) * 100, 100)}%` }}
                         ></div>
                     </div>
-                    <p className="mt-3 text-xs text-muted-foreground">
-                        Current load is 90% of maximum safe capacity.
-                    </p>
+                    )}
                 </>
             ),
         },
@@ -338,14 +339,14 @@ const QueueDetailsPage = () => {
                                 <span className="h-2.5 w-2.5 rounded-full bg-green-500"></span>
                                 <span className="text-sm text-muted-foreground">Active</span>
                             </div>
-                            <span className="text-3xl font-bold">12</span>
+                            <span className="text-3xl font-bold">{hospital?.activeDoctorCount || "--"}</span>
                         </div>
                         <div>
                             <div className="flex items-center gap-2 mb-1">
                                 <span className="h-2.5 w-2.5 rounded-full bg-gray-300 dark:bg-gray-600"></span>
                                 <span className="text-sm text-muted-foreground">Idle</span>
                             </div>
-                            <span className="text-3xl font-bold">2</span>
+                            <span className="text-3xl font-bold">--</span>
                         </div>
                         <div className="ml-auto">
                             <div className="rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/10 p-3 text-center">
@@ -373,14 +374,14 @@ const QueueDetailsPage = () => {
                     <div className="mb-8 flex flex-col justify-between gap-4 md:flex-row md:items-center">
                         <div>
                             <div className="flex items-center gap-3">
-                                <h1 className="text-2xl font-bold">Avicena Clinic</h1>
+                                <h1 className="text-2xl font-bold">{hospital?.name || "All Patients Queue"}</h1>
                                 <span className="inline-flex items-center rounded-md bg-amber-100 dark:bg-amber-900/30 px-2.5 py-0.5 text-sm font-medium text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-700/50">
                                     <span className="mr-1.5 h-2 w-2 rounded-full bg-amber-500 animate-pulse"></span>
                                     SURGE
                                 </span>
                             </div>
                             <p className="mt-1 text-sm text-muted-foreground">
-                                Real-time operational view · Last updated: 1 min ago
+                                Real-time operational view
                             </p>
                         </div>
                         <div className="flex items-center gap-3">
@@ -413,11 +414,6 @@ const QueueDetailsPage = () => {
                                             {card.badge.text}
                                         </span>
                                     )}
-                                    {card.title === "Staff Availability" && (
-                                        <button className="text-sm text-primary hover:text-primary/80 font-medium">
-                                            Manage Roster
-                                        </button>
-                                    )}
                                 </div>
                                 {card.content}
                             </div>
@@ -432,7 +428,7 @@ const QueueDetailsPage = () => {
                         <div className="p-6">
                             <DataTable
                                 columns={patientColumns}
-                                data={patientsData}
+                                data={patients}
                                 showFilters={false}
                             />
                         </div>
@@ -447,7 +443,8 @@ const QueueDetailsPage = () => {
                             </span>
                         </div>
                         <div className="space-y-6">
-                            {treatmentsData.map((treatment) => (
+                            {treatments.length === 0 && <p className="text-muted-foreground text-sm">No active treatments.</p>}
+                            {treatments.map((treatment) => (
                                 <div key={treatment.id} className="group">
                                     <div className="mb-2 flex items-center justify-between">
                                         <div className="flex items-center gap-3">
@@ -458,7 +455,7 @@ const QueueDetailsPage = () => {
                                             </div>
                                             <div>
                                                 <p className="text-sm font-bold">
-                                                    Patient {treatment.patientId} ({treatment.type})
+                                                    Patient {treatment.patientId.substring(0,8)} ({treatment.type})
                                                 </p>
                                                 <p className="text-xs text-muted-foreground">
                                                     {treatment.doctor} · {treatment.location}
@@ -475,13 +472,6 @@ const QueueDetailsPage = () => {
                                             style={{ width: `${treatment.progress}%` }}
                                         ></div>
                                     </div>
-                                    {treatment.id === "1" && (
-                                        <div className="mt-1 flex justify-between text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">
-                                            <span>Prep</span>
-                                            <span>Surgery</span>
-                                            <span>Recovery</span>
-                                        </div>
-                                    )}
                                 </div>
                             ))}
                         </div>
@@ -520,6 +510,14 @@ const QueueDetailsPage = () => {
                 </div>
             )}
         </div>
+    );
+};
+
+const QueueDetailsPage = () => {
+    return (
+        <Suspense fallback={<div>Loading queue details...</div>}>
+            <QueueDetailsContent />
+        </Suspense>
     );
 };
 

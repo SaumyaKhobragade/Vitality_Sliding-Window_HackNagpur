@@ -4,6 +4,7 @@ import com.example.Vitality.model.Hospital;
 import com.example.Vitality.model.Patient;
 import com.example.Vitality.service.HospitalService;
 import com.example.Vitality.service.OrchestratorService;
+import com.example.Vitality.service.SseService;
 import com.example.Vitality.service.WebSocketService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -20,13 +21,15 @@ public class SimulationController {
     private final HospitalService hospitalService;
     private final OrchestratorService orchestratorService;
     private final WebSocketService webSocketService;
+    private final SseService sseService;
     private final Random random = new Random();
 
     @Autowired
-    public SimulationController(HospitalService hospitalService, OrchestratorService orchestratorService, WebSocketService webSocketService) {
+    public SimulationController(HospitalService hospitalService, OrchestratorService orchestratorService, WebSocketService webSocketService, SseService sseService) {
         this.hospitalService = hospitalService;
         this.orchestratorService = orchestratorService;
         this.webSocketService = webSocketService;
+        this.sseService = sseService;
     }
 
     @PostMapping("/init")
@@ -46,6 +49,7 @@ public class SimulationController {
         event.put("timestamp", System.currentTimeMillis());
         event.put("message", "City initialized with " + hospitalCount + " hospitals");
         webSocketService.broadcastEvent(event);
+        sseService.broadcastEvent(event);
 
         return "City Initialized with " + hospitalCount + " hospitals.";
     }
@@ -72,11 +76,13 @@ public class SimulationController {
         event.put("timestamp", System.currentTimeMillis());
         event.put("message", "Patient " + p.getId() + " admitted to " + hospitalId + " with severity " + severity);
         webSocketService.broadcastEvent(event);
+        sseService.broadcastEvent(event);
 
         // Broadcast updated hospital state
         Hospital updatedHospital = hospitalService.getHospital(hospitalId);
         if (updatedHospital != null) {
             webSocketService.broadcastHospitalUpdate(updatedHospital);
+            sseService.broadcastHospital(updatedHospital);
         }
 
         return "Patient " + p.getId() + " admitted to " + hospitalId + " with severity " + severity;
@@ -122,6 +128,7 @@ public class SimulationController {
         event.put("timestamp", System.currentTimeMillis());
         event.put("message", "Surge: " + count + " patients injected into city hospitals");
         webSocketService.broadcastEvent(event);
+        sseService.broadcastEvent(event);
 
         return "Injected " + count + " patients in the queue.";
     }
@@ -150,6 +157,7 @@ public class SimulationController {
             event.put("timestamp", System.currentTimeMillis());
             event.put("message", "Distress: Patient " + patientId + status + " -> Priority: " + p.getDynamicPriority());
             webSocketService.broadcastEvent(event);
+            sseService.broadcastEvent(event);
 
             return "Updated distress for " + patientId + status + " -> New Priority: " + p.getDynamicPriority();
         }

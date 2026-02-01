@@ -389,13 +389,10 @@ export const SimulationProvider = ({ children }: { children: ReactNode }) => {
       if (data.success) {
         addLog("INFO", ` ${data.message}`);
         addLog("INFO", ` Flooded: ${data.hospitalsFlooded.join(", ")}`);
-        addLog("INFO", ` ${data.message}`);
-        addLog("INFO", ` Flooded: ${data.hospitalsFlooded.join(", ")}`);
       } else {
         addLog("CRITICAL", ` ${data.message}`);
       }
     } catch (err) {
-      addLog("CRITICAL", ` Failed to flood hospitals: ${err}`);
       addLog("CRITICAL", ` Failed to flood hospitals: ${err}`);
     }
   }, [addLog]);
@@ -506,7 +503,6 @@ export const SimulationProvider = ({ children }: { children: ReactNode }) => {
         addLog("WARN", `⚡ Surge: ${event.count} patients injected`);
       } else if (event.type === "HOSPITALS_FLOODED") {
         console.warn(` FLOODED: ${event.hospitalsFlooded?.join(", ")}`);
-        console.warn(` FLOODED: ${event.hospitalsFlooded?.join(", ")}`);
         addLog(
           "WARN",
           `Flooded ${event.hospitalsFlooded?.length || 0} hospitals with ${event.totalPatients} patients`,
@@ -535,8 +531,7 @@ export const SimulationProvider = ({ children }: { children: ReactNode }) => {
         );
         addLog(
           "SUCCESS",
-          ` Redirected: Patient ${getShortPatientId(event.patientId)} from ${sourceName} → ${targetName}`,
-          ` Redirected: Patient ${getShortPatientId(event.patientId)} from ${sourceName} → ${targetName}`,
+          ` Redirected: Patient ${getShortPatientId(event.patientId)} from ${sourceName} → ${targetName}`
         );
         setRedirectionEvents((prev) => [event, ...prev].slice(0, 100)); // Keep last 100
         setTotalRedirections((prev) => prev + 1); // Track total count

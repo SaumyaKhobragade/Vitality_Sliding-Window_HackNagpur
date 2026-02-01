@@ -109,7 +109,7 @@ const Sidebar = () => {
                     </SidebarGroupContent>
                 </SidebarGroup>
 
-                <SidebarGroup>
+                {/* <SidebarGroup>
                     <SidebarGroupLabel>Hospitals</SidebarGroupLabel>
                     <SidebarGroupContent>
                         <SidebarMenu>
@@ -131,7 +131,7 @@ const Sidebar = () => {
                             </SidebarMenuItem>
                         </SidebarMenu>
                     </SidebarGroupContent>
-                </SidebarGroup>
+                </SidebarGroup> */}
 
                 <SidebarGroup>
                     <SidebarGroupLabel>Operations</SidebarGroupLabel>

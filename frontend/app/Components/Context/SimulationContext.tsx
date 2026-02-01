@@ -19,6 +19,9 @@ import {
 interface SimulationContextType {
   stats: CityStats | null;
   hospitals: Record<string, Hospital>;
+  redirectionEvents: any[];
+  activeTreatments: Record<string, any[]>;
+  totalRedirections: number;
   isConnected: boolean;
   refreshStats: () => Promise<void>;
   refreshHospital: (id: string) => Promise<void>;
@@ -50,7 +53,9 @@ interface SimulationContextType {
   setPersistenceEnabled: (value: boolean) => void;
 }
 
-const SimulationContext = createContext<SimulationContextType | undefined>(undefined);
+const SimulationContext = createContext<SimulationContextType | undefined>(
+  undefined,
+);
 
 export const SimulationProvider = ({ children }: { children: ReactNode }) => {
   const [stats, setStats] = useState<CityStats | null>(null);
@@ -87,6 +92,16 @@ export const SimulationProvider = ({ children }: { children: ReactNode }) => {
       setStats(data);
     } catch (error) {
       console.error("Failed to fetch initial stats", error);
+    }
+  };
+
+  const refreshHospitals = async () => {
+    try {
+      const data = await ApiClient.getHospitals();
+      const hospitalMap = data.reduce((acc, h) => ({ ...acc, [h.id]: h }), {});
+      setHospitals(hospitalMap);
+    } catch (error: any) {
+      console.warn("Could not fetch hospitals:", error);
     }
   };
 
@@ -374,15 +389,45 @@ export const SimulationProvider = ({ children }: { children: ReactNode }) => {
     // Subscribe to real-time system events (patient admissions, surges, distress, etc.)
     const eventsUnsubscribe = socketService.subscribe("/topic/events", (event: any) => {
       console.log("🔔 Real-time event received:", event);
-      
+
       // You can dispatch events to EventStream component or global state here
       // Example: Add to event log, show toast notifications, etc.
       if (event.type === "SURGE_TRIGGERED") {
         console.warn(`⚠️ SURGE: ${event.count} patients injected`);
       } else if (event.type === "DISTRESS_DETECTED") {
-        console.error(`🚨 DISTRESS: Patient ${event.patientId} at priority ${event.newPriority}`);
+        console.error(
+          `🚨 DISTRESS: Patient ${event.patientId} at priority ${event.newPriority}`,
+        );
       } else if (event.type === "PATIENT_ADMITTED") {
-        console.info(`✅ ADMITTED: Patient ${event.patientId} to ${event.hospitalId}`);
+        console.info(
+          `✅ ADMITTED: Patient ${event.patientId} to ${event.hospitalId}`,
+        );
+      } else if (event.type === "PATIENT_REDIRECTED") {
+        console.info(
+          `🔄 REDIRECT: ${event.patientId} moved ${event.sourceHospitalId} -> ${event.targetHospitalId}`,
+        );
+        setRedirectionEvents((prev) => [event, ...prev].slice(0, 100)); // Keep last 100
+        setTotalRedirections((prev) => prev + 1); // Track total count
+      } else if (event.type === "TREATMENT_STARTED") {
+        setActiveTreatments((prev) => {
+          const hospitalId = event.hospitalId;
+          const current = prev[hospitalId] || [];
+          return {
+            ...prev,
+            [hospitalId]: [...current, event],
+          };
+        });
+      } else if (event.type === "TREATMENT_COMPLETED") {
+        setActiveTreatments((prev) => {
+          const hospitalId = event.hospitalId;
+          const current = prev[hospitalId] || [];
+          return {
+            ...prev,
+            [hospitalId]: current.filter(
+              (t: any) => t.patientId !== event.patientId,
+            ),
+          };
+        });
       }
     });
 

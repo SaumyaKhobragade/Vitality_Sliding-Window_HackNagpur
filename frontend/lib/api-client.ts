@@ -171,3 +171,8 @@ export const updatePolicy = async (
 export const getSimulationHistory = async (): Promise<any[]> => {
   return fetchLocal<any[]>("/api/simulation/history");
 };
+
+export const getHospitals = async (): Promise<Hospital[]> => {
+  return fetchJson<Hospital[]>("/hospitals");
+};
+

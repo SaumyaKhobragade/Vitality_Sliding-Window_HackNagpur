@@ -70,11 +70,10 @@ public class Patient implements Comparable<Patient> {
 
     public int getTreatmentTime() {
         if (this.baseSeverity < 4) {
-            return 2000;
+            return 5000;
         } else if (this.baseSeverity > 7) {
-            return 10000;
+            return 20000;
         }
-
-        return 5000;
+        return 10000;
     }
 }

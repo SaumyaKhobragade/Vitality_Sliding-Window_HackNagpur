@@ -29,10 +29,13 @@ public class HospitalService {
     private final Random random = new Random();
 
     private final SurgeDetectorService surgeDetectorService;
+    private final WebSocketService webSocketService;
 
     @Autowired
-    public HospitalService(SurgeDetectorService surgeDetectorService) {
+    public HospitalService(SurgeDetectorService surgeDetectorService, WebSocketService webSocketService) {
         this.surgeDetectorService = surgeDetectorService;
+        this.webSocketService = webSocketService;
+        webSocketService.broadcastEvent(Map.of("type", "SYSTEM_INIT", "message", "HospitalService Online"));
     }
 
     // Simulation Constants
@@ -86,14 +89,27 @@ public class HospitalService {
         CompletableFuture.runAsync(() -> {
             while (!stopFlag.get()) { // Check flag before waiting
                 try {
-                    // Poll instead of take to allow periodic checking of the flag
-                    Patient p = queue.poll(2, TimeUnit.SECONDS);
+                    // 1. Primary Check (Blocking for a short time to prioritize own department)
+                    Patient p = queue.poll(100, TimeUnit.MILLISECONDS);
+
+                    // 2. Upward Referral Logic (If primary empty, check lower tiers)
+                    if (p == null) {
+                        if (dept == Department.ICU) {
+                            // ICU Checks General, then Nurse
+                            p = h.getWaitingRooms().get(Department.GENERAL).poll();
+                            if (p == null) {
+                                p = h.getWaitingRooms().get(Department.NURSE).poll();
+                            }
+                        } else if (dept == Department.GENERAL) {
+                            // General Checks Nurse
+                            p = h.getWaitingRooms().get(Department.NURSE).poll();
+                        }
+                    }
+
                     if (p != null) {
                         treatPatient(h, dept, p);
                         // User Requirement: Check stop flag AFTER treatment to ensure graceful exit
                         if (stopFlag.get()) {
-                            // System.out.println("Doctor in " + h.getId() + " [" + dept + "] finishing
-                            // shift gracefully.");
                             break;
                         }
                     }
@@ -111,6 +127,20 @@ public class HospitalService {
         System.out.println("Hospital " + h.getId() + " [" + dept + "]: Treating patient " + p.getId() + " (Priority: "
                 + p.getDynamicPriority() + ")");
 
+        // Broadcast Start
+        try {
+            java.util.Map<String, Object> startEvent = new java.util.HashMap<>();
+            startEvent.put("type", "TREATMENT_STARTED");
+            startEvent.put("patientId", p.getId());
+            startEvent.put("hospitalId", h.getId());
+            startEvent.put("department", dept.name());
+            startEvent.put("duration", p.getTreatmentTime());
+            startEvent.put("timestamp", System.currentTimeMillis());
+            webSocketService.broadcastEvent(startEvent);
+        } catch (Exception e) {
+            System.err.println("Failed to broadcast start event: " + e.getMessage());
+        }
+
         try {
             Thread.sleep(p.getTreatmentTime());
         } catch (InterruptedException e) {
@@ -118,6 +148,19 @@ public class HospitalService {
         } finally {
             h.getActiveTreatments().decrementAndGet();
             masterPatientIndex.remove(p.getId());
+
+            // Broadcast Completion
+            try {
+                java.util.Map<String, Object> endEvent = new java.util.HashMap<>();
+                endEvent.put("type", "TREATMENT_COMPLETED");
+                endEvent.put("patientId", p.getId());
+                endEvent.put("hospitalId", h.getId());
+                endEvent.put("timestamp", System.currentTimeMillis());
+                webSocketService.broadcastEvent(endEvent);
+            } catch (Exception e) {
+                System.err.println("Failed to broadcast end event: " + e.getMessage());
+            }
+
             System.out.println("Hospital " + h.getId() + " [" + dept + "]: Finished treating patient " + p.getId());
         }
     }

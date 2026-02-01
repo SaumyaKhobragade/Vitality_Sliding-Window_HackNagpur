@@ -45,17 +45,22 @@ public class OrchestratorService {
     }
 
     private int[] checkQueueForRedirects(Hospital source, Department dept) {
-        if (!source.getWaitingRooms().containsKey(dept))
-            return new int[] { 0, 0 };
+        // if (!source.getWaitingRooms().containsKey(dept))
+        // return new int[] { 0, 0 };
 
         // Snapshot array to avoid Cme
-        Object[] patients = source.getWaitingRooms().get(dept).toArray();
+        // Use getOrDefault to prevent NullPointer
+        java.util.Queue<Patient> q = source.getWaitingRooms().get(dept);
+        if (q == null)
+            return new int[] { 0, 0 };
+
+        Object[] patients = q.toArray();
         int scanned = 0;
         int moved = 0;
 
         for (Object obj : patients) {
-            if (scanned++ > 20)
-                break; // Increased from 5 to 20 to catch more candidates
+            if (scanned++ > 50) // Increased limit
+                break;
 
             Patient p = (Patient) obj;
             String bestTarget = evaluateRedirection(p.getId(), source.getId());
@@ -71,11 +76,14 @@ public class OrchestratorService {
 
     private final HospitalService hospitalService;
     private final SurgeDetectorService surgeDetectorService;
+    private final WebSocketService webSocketService;
 
     @Autowired
-    public OrchestratorService(HospitalService hospitalService, SurgeDetectorService surgeDetectorService) {
+    public OrchestratorService(HospitalService hospitalService, SurgeDetectorService surgeDetectorService,
+            WebSocketService webSocketService) {
         this.hospitalService = hospitalService;
         this.surgeDetectorService = surgeDetectorService;
+        this.webSocketService = webSocketService;
     }
 
     /**
@@ -154,9 +162,24 @@ public class OrchestratorService {
         }
 
         if (!bestTargetId.equals(sourceHospitalId)) {
-            // System.out.println("Orchestrator: SUGGEST REDIRECT " + patientId + " from " +
-            // sourceHospitalId + " to "
-            // + bestTargetId + " (Benefit: " + maxScore + ")");
+            System.out.println("Orchestrator: SUGGEST REDIRECT " + patientId + " from " + sourceHospitalId + " to "
+                    + bestTargetId + " (Benefit: " + maxScore + ")");
+
+            // Broadcast suggestion/event
+            Map<String, Object> event = java.util.Map.of(
+                    "type", "PATIENT_REDIRECTED",
+                    "patientId", patientId,
+                    "sourceHospitalId", sourceHospitalId,
+                    "targetHospitalId", bestTargetId,
+                    "benefitScore", maxScore,
+                    "timestamp", System.currentTimeMillis());
+            try {
+                webSocketService.broadcastEvent(event);
+                // System.out.println("Orchestrator: Broadcasted REDIRECT event for " +
+                // patientId);
+            } catch (Exception e) {
+                System.err.println("Orchestrator: Failed to broadcast REDIRECT event: " + e.getMessage());
+            }
         }
 
         return bestTargetId;

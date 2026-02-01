@@ -3,7 +3,7 @@ builder = "NIXPACKS"
 buildCommand = "./gradlew clean build -x test"
 
 [deploy]
-startCommand = "java -Dserver.port=$PORT -Xmx512m -jar build/libs/Vitality-0.0.1-SNAPSHOT.war"
+startCommand = "./start.sh"
 healthcheckPath = "/actuator/health"
 healthcheckTimeout = 600
 restartPolicyType = "ON_FAILURE"

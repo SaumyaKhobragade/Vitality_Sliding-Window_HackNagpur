@@ -37,13 +37,15 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
+  // Allow access to home page and auth pages without authentication
   if (
     !user &&
-    !request.nextUrl.pathname.startsWith("/auth")
+    !request.nextUrl.pathname.startsWith("/auth") &&
+    request.nextUrl.pathname !== "/"
   ) {
-    // no user, potentially respond by redirecting the user to the login page
+    // Redirect unauthenticated users trying to access protected routes to home
     const url = request.nextUrl.clone();
-    url.pathname = "/auth";
+    url.pathname = "/";
     return NextResponse.redirect(url);
   }
 

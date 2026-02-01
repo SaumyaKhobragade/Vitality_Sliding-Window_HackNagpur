@@ -1,11 +1,24 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState, ReactNode, useRef, useCallback } from "react";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  ReactNode,
+  useRef,
+  useCallback,
+} from "react";
 import { CityStats, Hospital, LogEntry } from "@/lib/types";
 import { useRealtime } from "./RealtimeContext";
 import * as ApiClient from "@/lib/api-client";
-import { SimulationEngine, SimulationEvent, SimulationState } from "@/lib/simulation-engine";
+import {
+  SimulationEngine,
+  SimulationEvent,
+  SimulationState,
+} from "@/lib/simulation-engine";
 import { getShortPatientId } from "@/lib/utils";
+import { toast } from "sonner";
 import {
   handleSimulationEventPersistence,
   startPeriodicSync,
@@ -26,7 +39,7 @@ interface SimulationContextType {
   isConnected: boolean;
   refreshStats: () => Promise<void>;
   refreshHospital: (id: string) => Promise<void>;
-  
+
   // Simulation engine state
   isRunning: boolean;
   isLoading: boolean;
@@ -35,13 +48,13 @@ interface SimulationContextType {
   processedCount: number;
   avgWaitTime: number;
   persistenceEnabled: boolean;
-  
+
   // Simulation engine controls
   handleRunToggle: () => Promise<void>;
   handleReset: () => Promise<void>;
   triggerSurge: (count?: number) => void;
   triggerStaffDropout: (percent: number) => void;
-  
+
   // Configuration
   patientSurge: number;
   setPatientSurge: (value: number) => void;
@@ -62,10 +75,12 @@ export const SimulationProvider = ({ children }: { children: ReactNode }) => {
   const [stats, setStats] = useState<CityStats | null>(null);
   const [hospitals, setHospitals] = useState<Record<string, Hospital>>({});
   const [redirectionEvents, setRedirectionEvents] = useState<any[]>([]);
-  const [activeTreatments, setActiveTreatments] = useState<Record<string, any[]>>({});
+  const [activeTreatments, setActiveTreatments] = useState<
+    Record<string, any[]>
+  >({});
   const [totalRedirections, setTotalRedirections] = useState(0);
   const { socketService, isConnected } = useRealtime();
-  
+
   // Simulation engine state
   const [isRunning, setIsRunning] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -74,17 +89,19 @@ export const SimulationProvider = ({ children }: { children: ReactNode }) => {
   const [processedCount, setProcessedCount] = useState(0);
   const [avgWaitTime, setAvgWaitTime] = useState(0);
   const [persistenceEnabled, setPersistenceEnabled] = useState(true);
-  
+
   // Chaos controls
   const [patientSurge, setPatientSurge] = useState(2.0);
   const [staffDropout, setStaffDropout] = useState(0);
-  const [distressFreq, setDistressFreq] = useState<"LOW" | "MED" | "HIGH">("MED");
+  const [distressFreq, setDistressFreq] = useState<"LOW" | "MED" | "HIGH">(
+    "MED",
+  );
   const [policyLogic, setPolicyLogic] = useState("standard");
-  
+
   // Engine ref to persist across renders
   const engineRef = useRef<SimulationEngine | null>(null);
   const isRunningRef = useRef(isRunning);
-  
+
   // Keep ref in sync with state
   useEffect(() => {
     isRunningRef.current = isRunning;
@@ -98,7 +115,6 @@ export const SimulationProvider = ({ children }: { children: ReactNode }) => {
       console.error("Failed to fetch initial stats", error);
     }
   };
-
 
   const refreshHospital = async (id: string) => {
     try {
@@ -119,7 +135,7 @@ export const SimulationProvider = ({ children }: { children: ReactNode }) => {
       console.error("Failed to fetch hospitals", error);
     }
   };
-  
+
   // Add log entry helper
   const addLog = useCallback((level: LogEntry["level"], message: string) => {
     const timestamp = new Date().toLocaleTimeString("en-US", {
@@ -136,7 +152,7 @@ export const SimulationProvider = ({ children }: { children: ReactNode }) => {
     };
     setLogs((prev) => [...prev.slice(-99), newLog]);
   }, []);
-  
+
   // Handle simulation events
   const handleSimulationEvent = useCallback(
     (event: SimulationEvent) => {
@@ -149,61 +165,91 @@ export const SimulationProvider = ({ children }: { children: ReactNode }) => {
 
       switch (type) {
         case "SURGE_TRIGGERED":
-          addLog("WARN", `⚡ SURGE: ${data.count} patients injected into the system`);
+          addLog(
+            "WARN",
+            `⚡ SURGE: ${data.count} patients injected into the system`,
+          );
           break;
         case "DISTRESS_DETECTED":
           addLog(
             "CRITICAL",
-            `🚨 DISTRESS: ${getShortPatientId(data.patientId)} escalated from priority ${data.oldPriority} → ${data.newPriority}`
+            `🚨 DISTRESS: ${getShortPatientId(data.patientId)} escalated from priority ${data.oldPriority} → ${data.newPriority}`,
           );
           break;
         case "PATIENT_ADMITTED":
           addLog(
             "SUCCESS",
-            `✅ ${getShortPatientId(data.patientId)} admitted to ${data.hospitalName} (${data.department})`
+            `✅ ${getShortPatientId(data.patientId)} admitted to ${data.hospitalName} (${data.department})`,
           );
           break;
         case "PATIENT_DISCHARGED":
           addLog(
             "INFO",
-            `📤 ${getShortPatientId(data.patientId)} discharged from ${data.hospitalName}`
+            `📤 ${getShortPatientId(data.patientId)} discharged from ${data.hospitalName}`,
           );
           setProcessedCount((prev) => prev + 1);
           break;
         case "REDIRECTION":
           addLog(
             "INFO",
-            `🔄 ${getShortPatientId(data.patientId)} redirected: ${data.fromHospital} → ${data.toHospital}`
+            `🔄 ${getShortPatientId(data.patientId)} redirected: ${data.fromHospital} → ${data.toHospital}`,
           );
           break;
         case "STAFF_DROPOUT":
-          addLog("WARN", `👨‍⚕️ Staff dropout: ${data.percent}% reduction in staff`);
+          addLog(
+            "WARN",
+            `👨‍⚕️ Staff dropout: ${data.percent}% reduction in staff`,
+          );
+          break;
+        case "SURGE_DETECTED":
+          console.log("🚨 SURGE_DETECTED event received:", data);
+          addLog(
+            "WARN",
+            `🚨 SURGE DETECTED! Rate: ${data.rate}/min - Scaling to 140%`,
+          );
+          toast.warning("🚨 Surge Detected!", {
+            description: `Rate: ${data.rate}/min • Hospitals scaling to 140% capacity`,
+            duration: 5000,
+          });
+          console.log("✅ Surge toast notification triggered");
+          break;
+        case "SURGE_ENDED":
+          console.log("🟢 SURGE_ENDED event received:", data);
+          addLog(
+            "INFO",
+            `🟢 Surge ended. Rate: ${data.rate}/min - Restored to baseline`,
+          );
+          toast.success("🟢 Surge Ended", {
+            description: `Rate: ${data.rate}/min • Hospitals restored to baseline`,
+            duration: 4000,
+          });
+          console.log("✅ Surge ended toast notification triggered");
           break;
       }
     },
-    [addLog, persistenceEnabled]
+    [addLog, persistenceEnabled],
   );
-  
+
   // Handle state changes from simulation
   const handleStateChange = useCallback((state: SimulationState) => {
     setSimStats(state.stats);
-    
+
     // Update hospitals from simulation engine
     const hospitalMap: Record<string, Hospital> = {};
-    state.hospitals.forEach(h => {
+    state.hospitals.forEach((h) => {
       hospitalMap[h.id] = h;
     });
     setHospitals(hospitalMap);
-    
+
     // Calculate avg wait time estimate
     if (state.stats.totalDoctorsActive > 0) {
       const estimate = Math.round(
-        (state.stats.totalPatientsWaiting / state.stats.totalDoctorsActive) * 5
+        (state.stats.totalPatientsWaiting / state.stats.totalDoctorsActive) * 5,
       );
       setAvgWaitTime(estimate);
     }
   }, []);
-  
+
   // Handle Run/Pause Simulation
   const handleRunToggle = useCallback(async () => {
     if (!engineRef.current) return;
@@ -222,7 +268,10 @@ export const SimulationProvider = ({ children }: { children: ReactNode }) => {
         const hospitals = engineRef.current.getState().hospitals;
         addLog("SYSTEM", "💾 Persisting hospitals to database...");
         await persistHospitals(hospitals);
-        addLog("SUCCESS", `✅ ${hospitals.length} hospitals persisted to database`);
+        addLog(
+          "SUCCESS",
+          `✅ ${hospitals.length} hospitals persisted to database`,
+        );
       }
 
       // Now start the simulation
@@ -232,16 +281,20 @@ export const SimulationProvider = ({ children }: { children: ReactNode }) => {
       if (persistenceEnabled) {
         startPeriodicSync(
           () => engineRef.current?.getState().hospitals || [],
-          () => engineRef.current?.getState().stats || {
-            totalHospitals: 0,
-            totalPatientsWaiting: 0,
-            totalDoctorsActive: 0,
-            surgeActive: false,
-            recentRedirections: 0,
-          },
-          10000
+          () =>
+            engineRef.current?.getState().stats || {
+              totalHospitals: 0,
+              totalPatientsWaiting: 0,
+              totalDoctorsActive: 0,
+              surgeActive: false,
+              recentRedirections: 0,
+            },
+          10000,
         );
-        persistSimulationLog("SYSTEM", "Simulation started with Supabase persistence");
+        persistSimulationLog(
+          "SYSTEM",
+          "Simulation started with Supabase persistence",
+        );
       }
 
       setIsRunning(true);
@@ -294,45 +347,61 @@ export const SimulationProvider = ({ children }: { children: ReactNode }) => {
 
     setIsLoading(false);
   }, [addLog, persistenceEnabled]);
-  
+
   // Trigger Surge
-  const triggerSurge = useCallback((count?: number) => {
-    if (!engineRef.current) return;
+  const triggerSurge = useCallback(
+    (count?: number) => {
+      if (!engineRef.current) return;
 
-    if (!isRunning) {
-      console.warn("Start the simulation first before triggering a surge.");
-      return;
-    }
+      if (!isRunning) {
+        console.warn("Start the simulation first before triggering a surge.");
+        return;
+      }
 
-    const surgeCount = count ?? Math.max(Math.floor(patientSurge * 15), 10);
-    addLog("WARN", `⚡ Triggering patient surge: ${surgeCount} patients...`);
+      const surgeCount = count ?? Math.max(Math.floor(patientSurge * 15), 10);
+      addLog("WARN", `⚡ Triggering patient surge: ${surgeCount} patients...`);
 
-    engineRef.current.triggerSurge(surgeCount);
-  }, [isRunning, patientSurge, addLog]);
+      engineRef.current.triggerSurge(surgeCount);
+    },
+    [isRunning, patientSurge, addLog],
+  );
 
   // Trigger Staff Dropout
-  const triggerStaffDropout = useCallback((percent: number) => {
-    if (!engineRef.current || !isRunning) return;
+  const triggerStaffDropout = useCallback(
+    (percent: number) => {
+      if (!engineRef.current || !isRunning) return;
 
-    if (percent > 0) {
-      engineRef.current.triggerStaffDropout(percent);
-      addLog("WARN", `👨‍⚕️ Manual staff dropout triggered: ${percent}%`);
-    }
-  }, [isRunning, addLog]);
-  
+      if (percent > 0) {
+        engineRef.current.triggerStaffDropout(percent);
+        addLog("WARN", `👨‍⚕️ Manual staff dropout triggered: ${percent}%`);
+      }
+    },
+    [isRunning, addLog],
+  );
+
   // Initialize simulation engine
   useEffect(() => {
-    engineRef.current = new SimulationEngine(handleSimulationEvent, handleStateChange);
+    engineRef.current = new SimulationEngine(
+      handleSimulationEvent,
+      handleStateChange,
+    );
     addLog("SYSTEM", "🏥 Frontend Simulation Engine initialized");
 
     // Load historical logs from Supabase
     if (persistenceEnabled) {
-      loadHistoricalLogs(30).then((historicalLogs) => {
-        if (historicalLogs.length > 0) {
-          setLogs((prev) => [...historicalLogs.reverse(), ...prev].slice(-100));
-          addLog("SYSTEM", `📜 Loaded ${historicalLogs.length} historical logs from database`);
-        }
-      }).catch(console.error);
+      loadHistoricalLogs(30)
+        .then((historicalLogs) => {
+          if (historicalLogs.length > 0) {
+            setLogs((prev) =>
+              [...historicalLogs.reverse(), ...prev].slice(-100),
+            );
+            addLog(
+              "SYSTEM",
+              `📜 Loaded ${historicalLogs.length} historical logs from database`,
+            );
+          }
+        })
+        .catch(console.error);
     }
 
     return () => {
@@ -343,7 +412,7 @@ export const SimulationProvider = ({ children }: { children: ReactNode }) => {
       forceFlushLogs();
     };
   }, []);
-  
+
   // Update engine config when controls change
   useEffect(() => {
     if (engineRef.current) {
@@ -384,6 +453,17 @@ export const SimulationProvider = ({ children }: { children: ReactNode }) => {
     // Subscribe to real-time system events (patient admissions, surges, distress, etc.)
     socketService.subscribe("/topic/events", (event: any) => {
       console.log("🔔 Real-time event received:", event);
+
+      // Log surge-specific events with more detail
+      if (event.type === "SURGE_DETECTED" || event.type === "SURGE_ENDED") {
+        console.log(`📊 Surge Event Details:`, {
+          type: event.type,
+          rate: event.rate,
+          scalingFactor: event.scalingFactor,
+          message: event.message,
+          timestamp: new Date(event.timestamp).toLocaleTimeString(),
+        });
+      }
 
       // You can dispatch events to EventStream component or global state here
       // Example: Add to event log, show toast notifications, etc.
@@ -445,7 +525,7 @@ export const SimulationProvider = ({ children }: { children: ReactNode }) => {
         isConnected,
         refreshStats,
         refreshHospital,
-        
+
         // Simulation engine state
         isRunning,
         isLoading,
@@ -454,13 +534,13 @@ export const SimulationProvider = ({ children }: { children: ReactNode }) => {
         processedCount,
         avgWaitTime,
         persistenceEnabled,
-        
+
         // Simulation engine controls
         handleRunToggle,
         handleReset,
         triggerSurge,
         triggerStaffDropout,
-        
+
         // Configuration
         patientSurge,
         setPatientSurge,

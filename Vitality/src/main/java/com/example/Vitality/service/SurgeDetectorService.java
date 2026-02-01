@@ -1,6 +1,7 @@
 package com.example.Vitality.service;
 
 import com.example.Vitality.model.Patient;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.Deque;
@@ -16,6 +17,13 @@ public class SurgeDetectorService {
     private final Deque<Long> arrivalTimestamps = new ConcurrentLinkedDeque<>();
 
     private volatile boolean surgeActive = false;
+
+    private final HospitalService hospitalService;
+
+    @Autowired
+    public SurgeDetectorService(HospitalService hospitalService) {
+        this.hospitalService = hospitalService;
+    }
 
     public void recordArrival() {
         long now = System.currentTimeMillis();
@@ -40,10 +48,16 @@ public class SurgeDetectorService {
                 System.out.println(">>> 🚨 SURGE DETECTED! (Rate: " + currentRate
                         + "/min) >>> Switching to SURVIVAL MODE (Time Weight: 1.0)");
                 Patient.setAgingFactor(1.0); // Boost wait time importance
+
+                // SURGE RESPONSE: Increase all hospital threads by 40%
+                hospitalService.scaleAllHospitals(1.4);
             } else {
                 System.out.println(">>> 🟢 SURGE ENDED. (Rate: " + currentRate
                         + "/min) >>> Returning to NORMAL MODE (Time Weight: 0.5)");
                 Patient.setAgingFactor(0.5); // Normal balance
+
+                // SURGE RECOVERY: Restore all hospitals to baseline
+                hospitalService.scaleAllHospitals(1.0);
             }
         }
     }

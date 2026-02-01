@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { useSimulation } from "../Context/SimulationContext";
+import { formatPatientId } from "@/lib/utils";
 import {
   ArrowRight,
   TrendingUp,
@@ -140,8 +141,7 @@ const RedirectionMonitor = () => {
                       onClick={() => toggleExpand(event.patientId + index)} // Ensure unique key
                     >
                       <td className="px-4 py-3 font-medium text-gray-900 dark:text-white">
-                        {event.patientId.substring(0, 8)}...
-                        {event.patientId.substring(event.patientId.length - 4)}
+                        {formatPatientId(event.patientId)}
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">

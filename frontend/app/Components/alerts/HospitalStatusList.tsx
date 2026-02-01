@@ -1,14 +1,50 @@
 "use client";
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { User, Clock, ArrowRight } from "lucide-react";
 import Link from "next/link";
-import { useSimulation } from "@/app/Components/Context/SimulationContext";
 import { Hospital } from "@/lib/types";
+import * as ApiClient from "@/lib/api-client";
+import { useRealtime } from "@/app/Components/Context/RealtimeContext";
 
 const HospitalStatusList = () => {
-    const { hospitals } = useSimulation();
-    const data = Object.values(hospitals);
+    const [hospitals, setHospitals] = useState<Hospital[]>([]);
+    const [loading, setLoading] = useState(true);
+    const { socketService } = useRealtime();
+
+    // Fetch hospitals from database
+    useEffect(() => {
+        const fetchHospitals = async () => {
+            try {
+                const data = await ApiClient.getHospitals();
+                setHospitals(data);
+            } catch (error) {
+                console.error("Failed to fetch hospitals", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchHospitals();
+
+        // Subscribe to backend hospital updates only
+        socketService.subscribe("/topic/hospital", (newHospital: Hospital) => {
+            setHospitals((prev) => {
+                const index = prev.findIndex(h => h.id === newHospital.id);
+                if (index >= 0) {
+                    const updated = [...prev];
+                    updated[index] = newHospital;
+                    return updated;
+                } else {
+                    return [...prev, newHospital];
+                }
+            });
+        });
+
+        return () => {
+            socketService.unsubscribe("/topic/hospital");
+        };
+    }, [socketService]);
 
     const getStatusStyles = (status: string) => {
         switch (status) {
@@ -51,11 +87,21 @@ const HospitalStatusList = () => {
         return "CRITICAL";
     };
 
-    if (data.length === 0) {
+    if (loading) {
         return (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                 <div className="col-span-full text-center p-10 text-gray-500 border border-dashed rounded-xl">
-                    Waiting for simulation data...
+                    Loading hospitals from database...
+                </div>
+            </div>
+        );
+    }
+
+    if (hospitals.length === 0) {
+        return (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                <div className="col-span-full text-center p-10 text-gray-500 border border-dashed rounded-xl">
+                    No hospitals found in database
                 </div>
             </div>
         );
@@ -63,7 +109,7 @@ const HospitalStatusList = () => {
 
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-            {data.map((item, index) => {
+            {hospitals.map((item, index) => {
                 const status = getStatus(item);
                 const styles = getStatusStyles(status);
                 const specialties = Object.keys(item.waitingRooms || {});

@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { DISTRESS_FREQUENCIES, POLICY_OPTIONS } from "@/db/mockdata";
+import { DISTRESS_FREQUENCIES, POLICY_OPTIONS } from "@/lib/constants";
 
 interface ChaosControlsProps {
     patientSurge: number;
@@ -36,6 +36,7 @@ interface ChaosControlsProps {
     policyLogic: string;
     setPolicyLogic: (val: string) => void;
     onTriggerSurge?: () => void;
+    onTriggerStaffDropout?: () => void;
 }
 
 export function ChaosControls({
@@ -48,6 +49,7 @@ export function ChaosControls({
     policyLogic,
     setPolicyLogic,
     onTriggerSurge,
+    onTriggerStaffDropout,
 }: ChaosControlsProps) {
     return (
         <section className="space-y-4">
@@ -97,7 +99,7 @@ export function ChaosControls({
                         <Button
                             variant="ghost"
                             onClick={onTriggerSurge}
-                            className="w-full bg-blue-50 text-blue-700 hover:bg-blue-100 hover:text-blue-800 h-9 text-xs font-semibold uppercase tracking-wide mt-2"
+                            className="w-full bg-blue-50 text-blue-700 hover:bg-blue-100 hover:text-blue-800 h-9 text-xs font-semibold uppercase tracking-wide mt-2 cursor-pointer"
                         >
                             <Zap className="w-3 h-3 mr-1.5" /> Trigger Surge
                         </Button>
@@ -137,12 +139,19 @@ export function ChaosControls({
                                 className="[&>div>div]:bg-red-500 [&>div:last-child]:border-red-500" // Override colors
                             />
                         </div>
+                        <Button
+                            variant="ghost"
+                            onClick={onTriggerStaffDropout}
+                            className="w-full bg-red-50 text-red-700 hover:bg-red-100 hover:text-red-800 h-9 text-xs font-semibold uppercase tracking-wide mt-2 cursor-pointer"
+                        >
+                            <UserMinus className="w-3 h-3 mr-1.5" /> Apply Dropout
+                        </Button>
                     </CardContent>
                 </Card>
 
                 {/* Card 3: Distress Freq */}
                 <Card className="border-none shadow-sm ring-1 ring-neutral-200/60 bg-white">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 ">
                         <div className="space-y-1">
                             <CardTitle className="text-sm font-semibold uppercase tracking-wide text-neutral-text-secondary">
                                 Distress Freq.
@@ -164,7 +173,7 @@ export function ChaosControls({
                                         setDistressFreq(level as "LOW" | "MED" | "HIGH")
                                     }
                                     className={cn(
-                                        "flex-1 py-1.5 text-xs font-bold rounded-md transition-all duration-200",
+                                        "flex-1 py-1.5 text-xs font-bold rounded-md transition-all duration-200 cursor-pointer",
                                         distressFreq === level
                                             ? level === "LOW"
                                                 ? "bg-white text-neutral-800 shadow-sm"
@@ -211,7 +220,7 @@ export function ChaosControls({
                         </Select>
                         <Button
                             variant="ghost"
-                            className="w-full bg-purple-50 text-purple-700 hover:bg-purple-100 hover:text-purple-800 h-9 text-xs font-semibold uppercase tracking-wide"
+                            className="w-full bg-purple-50 text-purple-700 hover:bg-purple-100 hover:text-purple-800 h-9 text-xs font-semibold uppercase tracking-wide cursor-pointer"
                         >
                             <RotateCcw className="w-3 h-3 mr-1.5" /> Apply Instantly
                         </Button>

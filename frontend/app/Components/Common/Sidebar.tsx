@@ -191,14 +191,6 @@ const Sidebar = () => {
 
             <SidebarFooter>
                 <SidebarMenu>
-                    <SidebarMenuItem>
-                        <SidebarMenuButton asChild tooltip="Customer Support">
-                            <Link href="#">
-                                <CircleHelp />
-                                <span>Customer Support</span>
-                            </Link>
-                        </SidebarMenuButton>
-                    </SidebarMenuItem>
                     {user && (
                         <SidebarMenuItem>
                             <div className="flex items-center gap-2 px-2 py-2 group-data-[collapsible=icon]:hidden">

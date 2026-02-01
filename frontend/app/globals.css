@@ -238,3 +238,35 @@
     background-position: 100% center;
   }
 }
+
+/* Custom Scrollbar Styles */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #4b5563 transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: #4b5563;
+  border-radius: 4px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: #6b7280;
+}
+
+.dark *::-webkit-scrollbar-thumb {
+  background-color: #374151;
+}
+
+.dark *::-webkit-scrollbar-thumb:hover {
+  background-color: #4b5563;
+}

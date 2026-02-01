@@ -1,4 +1,4 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import { Terminal as TerminalIcon } from "lucide-react";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -10,11 +10,24 @@ interface EventStreamProps {
 
 export function EventStream({ logs }: EventStreamProps) {
     const logsEndRef = useRef<HTMLDivElement>(null);
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
+    const [autoScroll, setAutoScroll] = useState(true);
 
-    // Scroll to bottom of logs
+    // Check if user is scrolled near the bottom
+    const handleScroll = () => {
+        const container = scrollContainerRef.current;
+        if (!container) return;
+        
+        const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 50;
+        setAutoScroll(isNearBottom);
+    };
+
+    // Scroll to bottom only if autoScroll is enabled
     useEffect(() => {
-        logsEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }, [logs]);
+        if (autoScroll) {
+            logsEndRef.current?.scrollIntoView({ behavior: "smooth" });
+        }
+    }, [logs, autoScroll]);
 
     return (
         <Card className="border-none shadow-xl bg-slate-900 h-full flex flex-col overflow-hidden ring-1 ring-slate-800">
@@ -31,7 +44,11 @@ export function EventStream({ logs }: EventStreamProps) {
                 </div>
             </CardHeader>
             <CardContent className="p-0 flex-1 flex flex-col relative">
-                <div className="flex-1 p-4 overflow-y-auto space-y-2 font-mono text-xs max-h-[500px] scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
+                <div 
+                    ref={scrollContainerRef}
+                    onScroll={handleScroll}
+                    className="flex-1 p-4 overflow-y-auto space-y-2 font-mono text-xs max-h-[500px] scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent"
+                >
                     {logs.map((log, index) => (
                         <div
                             key={log.id}

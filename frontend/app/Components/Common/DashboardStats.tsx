@@ -12,12 +12,21 @@ import {
 import { useSimulation } from "@/app/Components/Context/SimulationContext";
 
 const DashboardStats = () => {
-    const { stats } = useSimulation();
+    const { stats, hospitals, simStats, isRunning } = useSimulation();
+
+    // Use simStats when simulation is running, otherwise use backend stats
+    const currentStats = isRunning && simStats ? simStats : stats;
+
+    // Calculate overloaded hospitals
+    const overloadedCount = Object.values(hospitals).filter(h => {
+        if (!h.maxCapacity) return false;
+        return (h.totalQueueSize / h.maxCapacity) >= 0.7; // 70% threshold
+    }).length;
 
     const data = [
         {
             title: "Patients Waiting",
-            value: stats?.totalPatientsWaiting.toString() || "0",
+            value: currentStats?.totalPatientsWaiting?.toString() || "0",
             icon: <Users className="h-6 w-6" />,
             color: "bg-blue-50 dark:bg-blue-900/30",
             trend: "12%",
@@ -27,7 +36,7 @@ const DashboardStats = () => {
         },
         {
             title: "Active Doctors",
-            value: stats?.totalDoctorsActive.toString() || "0",
+            value: currentStats?.totalDoctorsActive?.toString() || "0",
             icon: <Activity className="h-6 w-6" />,
             color: "bg-green-50 dark:bg-green-900/30",
             trend: "Stable",
@@ -37,7 +46,7 @@ const DashboardStats = () => {
         },
         {
             title: "Overloaded",
-            value: "3",
+            value: overloadedCount.toString(),
             icon: <TriangleAlert className="h-6 w-6" />,
             color: "bg-red-50 dark:bg-red-900/30",
             trend: "Critical",
@@ -47,10 +56,10 @@ const DashboardStats = () => {
         },
         {
             title: "Redirections (15m)",
-            value: "8",
+            value: currentStats?.recentRedirections?.toString() || "0",
             icon: <Shuffle className="h-6 w-6" />,
             color: "bg-purple-50 dark:bg-purple-900/30",
-            trend: "2",
+            trend: "-",
             trendIcon: <ArrowDown className="h-4 w-4 mr-1" />,
             trendColor: "text-green-500",
             trendText: "vs prev 15m",

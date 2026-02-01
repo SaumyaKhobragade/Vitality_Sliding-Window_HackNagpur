@@ -19,10 +19,12 @@ public class SurgeDetectorService {
     private volatile boolean surgeActive = false;
 
     private final HospitalService hospitalService;
+    private final TriagePolicyService triagePolicyService;
 
     @Autowired
-    public SurgeDetectorService(HospitalService hospitalService) {
+    public SurgeDetectorService(HospitalService hospitalService, TriagePolicyService triagePolicyService) {
         this.hospitalService = hospitalService;
+        this.triagePolicyService = triagePolicyService;
     }
 
     public void recordArrival() {
@@ -47,14 +49,14 @@ public class SurgeDetectorService {
             if (surgeActive) {
                 System.out.println(">>> 🚨 SURGE DETECTED! (Rate: " + currentRate
                         + "/min) >>> Switching to SURVIVAL MODE (Time Weight: 1.0)");
-                Patient.setAgingFactor(1.0); // Boost wait time importance
+                triagePolicyService.updatePolicy("aging_factor", 1.0); // Boost wait time importance
 
                 // SURGE RESPONSE: Increase all hospital threads by 40%
                 hospitalService.scaleAllHospitals(1.4);
             } else {
                 System.out.println(">>> 🟢 SURGE ENDED. (Rate: " + currentRate
                         + "/min) >>> Returning to NORMAL MODE (Time Weight: 0.5)");
-                Patient.setAgingFactor(0.5); // Normal balance
+                triagePolicyService.updatePolicy("aging_factor", 0.5); // Normal balance
 
                 // SURGE RECOVERY: Restore all hospitals to baseline
                 hospitalService.scaleAllHospitals(1.0);
@@ -75,7 +77,7 @@ public class SurgeDetectorService {
     public void reset() {
         arrivalTimestamps.clear();
         surgeActive = false;
-        Patient.setAgingFactor(0.5); // Reset Factor
+        triagePolicyService.updatePolicy("aging_factor", 0.5); // Reset Factor
         System.out.println("Surge Detector Reset.");
     }
 }

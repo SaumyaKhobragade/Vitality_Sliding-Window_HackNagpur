@@ -1,20 +1,19 @@
 import { describe, it, expect, vi } from 'vitest'
 import { getPatientFlowData } from './data'
-import { PATIENT_FLOW_DATA } from '@/db/mockdata'
+
+global.fetch = vi.fn()
 
 describe('Data Fetching', () => {
-  it('getPatientFlowData should return mock data after delay', async () => {
-    vi.useFakeTimers()
+  it('getPatientFlowData should return data from API', async () => {
+    const mockData = [{ timestamp: "10:00", activePatients: 45 }];
+    (global.fetch as any).mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve(mockData)
+    });
     
-    const promise = getPatientFlowData()
+    const data = await getPatientFlowData()
     
-    // Fast-forward time
-    vi.advanceTimersByTime(1000)
-    
-    const data = await promise
-    expect(data).toEqual(PATIENT_FLOW_DATA)
-    expect(data.length).toBeGreaterThan(0)
-    
-    vi.useRealTimers()
+    expect(global.fetch).toHaveBeenCalledWith("/api/analytics")
+    expect(data).toEqual(mockData)
   })
 })

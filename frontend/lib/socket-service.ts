@@ -14,9 +14,16 @@ export class SocketService {
   private connected: boolean = false;
   private pendingSubscriptions: PendingSubscription[] = [];
 
+  public onConnectCallback?: () => void;
+  public onDisconnectCallback?: () => void;
+
   constructor() {
+    // Connect to the Spring Boot backend WebSocket endpoint directly
+    // Next.js rewrites don't work for WebSocket connections, so we connect directly
+    const wsUrl = process.env.NEXT_PUBLIC_WS_URL || "http://localhost:9090/ws";
+
     this.client = new Client({
-      webSocketFactory: () => new SockJS("/ws"),
+      webSocketFactory: () => new SockJS(wsUrl),
       debug: (str) => {
         // console.log(str);
       },
@@ -31,16 +38,20 @@ export class SocketService {
 
       // Process pending subscriptions
       this.processPendingSubscriptions();
+
+      if (this.onConnectCallback) this.onConnectCallback();
     };
 
     this.client.onDisconnect = () => {
       this.connected = false;
-      console.log('WebSocket Disconnected');
+      console.log("WebSocket Disconnected");
+
+      if (this.onDisconnectCallback) this.onDisconnectCallback();
     };
 
     this.client.onStompError = (frame) => {
-      console.error('Broker reported error: ' + frame.headers['message']);
-      console.error('Additional details: ' + frame.body);
+      console.error("Broker reported error: " + frame.headers["message"]);
+      console.error("Additional details: " + frame.body);
     };
   }
 

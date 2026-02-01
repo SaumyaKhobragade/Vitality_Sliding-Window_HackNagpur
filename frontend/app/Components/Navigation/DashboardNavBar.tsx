@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Menu, Plus, ChevronDown } from "lucide-react";
@@ -29,6 +29,12 @@ export const DashboardNavBar = () => {
     const { toggleSidebar } = useSidebar();
     const { isConnected } = useSimulation();
     const { user, signOut } = useAuth();
+    const [mounted, setMounted] = useState(false);
+
+    // Prevent SSR rendering to avoid hydration mismatch with Radix UI IDs
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     // Mock notifications data
     const [notifications, setNotifications] = useState<Notification[]>([
@@ -155,38 +161,66 @@ export const DashboardNavBar = () => {
                     </div>
                 </div>
                 <div className="flex items-center gap-3 pl-2">
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <div className="flex items-center gap-3 cursor-pointer">
-                                <div className="text-right hidden sm:block">
-                                    <p className="text-sm font-semibold text-gray-900 dark:text-white leading-none">
-                                        {user?.name || "Guest User"}
-                                    </p>
-                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                        {user ? "Authenticated" : "Guest"}
-                                    </p>
+                    {mounted ? (
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <div className="flex items-center gap-3 cursor-pointer">
+                                    <div className="text-right hidden sm:block">
+                                        <p className="text-sm font-semibold text-gray-900 dark:text-white leading-none">
+                                            {user?.name || "Guest User"}
+                                        </p>
+                                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                            {user ? "Authenticated" : "Guest"}
+                                        </p>
+                                    </div>
+                                    <Avatar className="h-9 w-9 border border-gray-200 dark:border-gray-700">
+                                        <AvatarImage
+                                            src={user?.avatarUrl || ""}
+                                            alt={user?.name || "User"}
+                                        />
+                                        <AvatarFallback>
+                                            {user?.name?.substring(0, 2).toUpperCase() || "GU"}
+                                        </AvatarFallback>
+                                    </Avatar>
+                                    <ChevronDown className="h-4 w-4 text-gray-400" />
                                 </div>
-                                <Avatar className="h-9 w-9 border border-gray-200 dark:border-gray-700">
-                                    <AvatarImage
-                                        src={user?.avatarUrl || ""}
-                                        alt={user?.name || "User"}
-                                    />
-                                    <AvatarFallback>{user?.name?.substring(0, 2).toUpperCase() || "GU"}</AvatarFallback>
-                                </Avatar>
-                                <ChevronDown className="h-4 w-4 text-gray-400" />
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-56">
+                                <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem>Profile</DropdownMenuItem>
+                                <DropdownMenuItem>Settings</DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                    onClick={() => signOut()}
+                                    className="text-red-600 focus:text-red-600"
+                                >
+                                    Sign Out
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    ) : (
+                        <div className="flex items-center gap-3 cursor-pointer">
+                            <div className="text-right hidden sm:block">
+                                <p className="text-sm font-semibold text-gray-900 dark:text-white leading-none">
+                                    {user?.name || "Guest User"}
+                                </p>
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                    {user ? "Authenticated" : "Guest"}
+                                </p>
                             </div>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-56">
-                            <DropdownMenuLabel>My Account</DropdownMenuLabel>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem>Profile</DropdownMenuItem>
-                            <DropdownMenuItem>Settings</DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={() => signOut()} className="text-red-600 focus:text-red-600">
-                                Sign Out
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
+                            <Avatar className="h-9 w-9 border border-gray-200 dark:border-gray-700">
+                                <AvatarImage
+                                    src={user?.avatarUrl || ""}
+                                    alt={user?.name || "User"}
+                                />
+                                <AvatarFallback>
+                                    {user?.name?.substring(0, 2).toUpperCase() || "GU"}
+                                </AvatarFallback>
+                            </Avatar>
+                            <ChevronDown className="h-4 w-4 text-gray-400" />
+                        </div>
+                    )}
                 </div>
             </div>
         </header>

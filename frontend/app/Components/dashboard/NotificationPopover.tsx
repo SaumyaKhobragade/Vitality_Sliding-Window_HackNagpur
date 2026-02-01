@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import { Bell, AlertTriangle, RefreshCw, Info } from "lucide-react";
 import {
     Popover,
@@ -54,6 +55,34 @@ export function NotificationPopover({
     onViewAll,
 }: NotificationPopoverProps) {
     const unreadCount = notifications.filter((n) => !n.read).length;
+    const [mounted, setMounted] = React.useState(false);
+
+    // Prevent SSR rendering to avoid hydration mismatch with Radix UI IDs
+    React.useEffect(() => {
+        setMounted(true);
+    }, []);
+
+    // Render placeholder during SSR to avoid hydration mismatch
+    if (!mounted) {
+        return (
+            <Button
+                variant="ghost"
+                size="icon"
+                className="relative hover:bg-accent transition-colors"
+                aria-label={`Notifications (${unreadCount} unread)`}
+            >
+                <Bell className="h-5 w-5" />
+                {unreadCount > 0 && (
+                    <Badge
+                        variant="destructive"
+                        className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs rounded-full bg-severity-critical animate-pulse"
+                    >
+                        {unreadCount}
+                    </Badge>
+                )}
+            </Button>
+        );
+    }
 
     return (
         <Popover>

@@ -4,6 +4,7 @@ import com.example.Vitality.model.Hospital;
 import com.example.Vitality.model.Patient;
 import com.example.Vitality.service.HospitalService;
 import com.example.Vitality.service.OrchestratorService;
+import com.example.Vitality.service.SseService;
 import com.example.Vitality.service.WebSocketService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -20,14 +21,17 @@ public class SimulationController {
     private final HospitalService hospitalService;
     private final OrchestratorService orchestratorService;
     private final WebSocketService webSocketService;
+    private final SseService sseService;
+    private final com.example.Vitality.service.DistressService distressService;
     private final Random random = new Random();
 
     @Autowired
-    public SimulationController(HospitalService hospitalService, OrchestratorService orchestratorService,
-            WebSocketService webSocketService) {
+    public SimulationController(HospitalService hospitalService, OrchestratorService orchestratorService, WebSocketService webSocketService, SseService sseService, com.example.Vitality.service.DistressService distressService) {
         this.hospitalService = hospitalService;
         this.orchestratorService = orchestratorService;
         this.webSocketService = webSocketService;
+        this.sseService = sseService;
+        this.distressService = distressService;
     }
 
     @PostMapping("/init")
@@ -47,6 +51,7 @@ public class SimulationController {
         event.put("timestamp", System.currentTimeMillis());
         event.put("message", "City initialized with " + hospitalCount + " hospitals");
         webSocketService.broadcastEvent(event);
+        sseService.broadcastEvent(event);
 
         return "City Initialized with " + hospitalCount + " hospitals.";
     }
@@ -73,11 +78,13 @@ public class SimulationController {
         event.put("timestamp", System.currentTimeMillis());
         event.put("message", "Patient " + p.getId() + " admitted to " + hospitalId + " with severity " + severity);
         webSocketService.broadcastEvent(event);
+        sseService.broadcastEvent(event);
 
         // Broadcast updated hospital state
         Hospital updatedHospital = hospitalService.getHospital(hospitalId);
         if (updatedHospital != null) {
             webSocketService.broadcastHospitalUpdate(updatedHospital);
+            sseService.broadcastHospital(updatedHospital);
         }
 
         // return "Patient " + p.getId() + " admitted to " + hospitalId + " with
@@ -129,6 +136,7 @@ public class SimulationController {
         event.put("timestamp", System.currentTimeMillis());
         event.put("message", "Surge: " + count + " patients injected into city hospitals");
         webSocketService.broadcastEvent(event);
+        sseService.broadcastEvent(event);
 
         return "Injected " + count + " patients in the queue.";
     }
@@ -137,31 +145,24 @@ public class SimulationController {
     public String triggerDistress(@RequestBody Map<String, Object> body) {
         String hospitalId = (String) body.get("hospitalId");
         String patientId = (String) body.get("patientId");
-        int distressLevel = (int) body.get("distressLevel"); // e.g. 5 for "Collapse"
+        int distressLevel = (int) body.get("distressLevel"); // e.g. 50 (Provisional Boost)
 
-        // Fix: Find patient globally, as they might be in treatment (removed from
-        // queue)
-        Patient p = hospitalService.findPatient(patientId);
-
-        if (p != null) {
-            p.getDistressScore().addAndGet(distressLevel);
-            String status = p.isTreating() ? " (IN TREATMENT)" : " (WAITING)";
-
-            // Broadcast distress event
-            Map<String, Object> event = new HashMap<>();
-            event.put("type", "DISTRESS_DETECTED");
-            event.put("hospitalId", hospitalId);
-            event.put("patientId", patientId);
-            event.put("distressLevel", distressLevel);
-            event.put("newPriority", p.getDynamicPriority());
-            event.put("timestamp", System.currentTimeMillis());
-            event.put("message", "Distress: Patient " + patientId + status + " -> Priority: " + p.getDynamicPriority());
-            webSocketService.broadcastEvent(event);
-
-            return "Updated distress for " + patientId + status + " -> New Priority: " + p.getDynamicPriority();
-        }
-
-        return "Patient not found (ID: " + patientId + ")";
+        distressService.triggerDistress(patientId, distressLevel);
+        return "Triggered PENDING distress for " + patientId;
+    }
+    
+    @PostMapping("/distress/confirm")
+    public String confirmDistress(@RequestBody Map<String, String> body) {
+        String patientId = body.get("patientId");
+        distressService.confirmDistress(patientId);
+        return "Confirmed distress for " + patientId;
+    }
+    
+    @PostMapping("/distress/dismiss")
+    public String dismissDistress(@RequestBody Map<String, String> body) {
+        String patientId = body.get("patientId");
+        distressService.dismissDistress(patientId);
+        return "Dismissed distress for " + patientId;
     }
 
     @GetMapping("/testInitialization")

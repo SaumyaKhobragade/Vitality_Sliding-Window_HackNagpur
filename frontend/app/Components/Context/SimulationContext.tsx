@@ -1,15 +1,21 @@
 "use client";
 
-import React, {
-  createContext,
-  useContext,
-  useEffect,
-  useState,
-  ReactNode,
-} from "react";
-import { CityStats, Hospital } from "@/lib/types";
-import { SocketService } from "@/lib/socket-service";
+import React, { createContext, useContext, useEffect, useState, ReactNode, useRef, useCallback } from "react";
+import { CityStats, Hospital, LogEntry } from "@/lib/types";
+import { useRealtime } from "./RealtimeContext";
 import * as ApiClient from "@/lib/api-client";
+import { SimulationEngine, SimulationEvent, SimulationState } from "@/lib/simulation-engine";
+import { getShortPatientId } from "@/lib/utils";
+import {
+  handleSimulationEventPersistence,
+  startPeriodicSync,
+  stopPeriodicSync,
+  loadHistoricalLogs,
+  clearSimulationData,
+  persistSimulationLog,
+  forceFlushLogs,
+  persistHospitals,
+} from "@/lib/supabase-simulation";
 
 interface SimulationContextType {
   stats: CityStats | null;
@@ -20,6 +26,32 @@ interface SimulationContextType {
   isConnected: boolean;
   refreshStats: () => Promise<void>;
   refreshHospital: (id: string) => Promise<void>;
+  
+  // Simulation engine state
+  isRunning: boolean;
+  isLoading: boolean;
+  logs: LogEntry[];
+  simStats: CityStats | null;
+  processedCount: number;
+  avgWaitTime: number;
+  persistenceEnabled: boolean;
+  
+  // Simulation engine controls
+  handleRunToggle: () => Promise<void>;
+  handleReset: () => Promise<void>;
+  triggerSurge: (count?: number) => void;
+  triggerStaffDropout: (percent: number) => void;
+  
+  // Configuration
+  patientSurge: number;
+  setPatientSurge: (value: number) => void;
+  staffDropout: number;
+  setStaffDropout: (value: number) => void;
+  distressFreq: "LOW" | "MED" | "HIGH";
+  setDistressFreq: (value: "LOW" | "MED" | "HIGH") => void;
+  policyLogic: string;
+  setPolicyLogic: (value: string) => void;
+  setPersistenceEnabled: (value: boolean) => void;
 }
 
 const SimulationContext = createContext<SimulationContextType | undefined>(
@@ -30,11 +62,33 @@ export const SimulationProvider = ({ children }: { children: ReactNode }) => {
   const [stats, setStats] = useState<CityStats | null>(null);
   const [hospitals, setHospitals] = useState<Record<string, Hospital>>({});
   const [redirectionEvents, setRedirectionEvents] = useState<any[]>([]);
+  const [activeTreatments, setActiveTreatments] = useState<Record<string, any[]>>({});
   const [totalRedirections, setTotalRedirections] = useState(0);
-  const [activeTreatments, setActiveTreatments] = useState<
-    Record<string, any[]>
-  >({}); // Map<HospitalId, Treatment[]>
-  const [socketService] = useState(() => new SocketService());
+  const { socketService, isConnected } = useRealtime();
+  
+  // Simulation engine state
+  const [isRunning, setIsRunning] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [simStats, setSimStats] = useState<CityStats | null>(null);
+  const [processedCount, setProcessedCount] = useState(0);
+  const [avgWaitTime, setAvgWaitTime] = useState(0);
+  const [persistenceEnabled, setPersistenceEnabled] = useState(true);
+  
+  // Chaos controls
+  const [patientSurge, setPatientSurge] = useState(2.0);
+  const [staffDropout, setStaffDropout] = useState(0);
+  const [distressFreq, setDistressFreq] = useState<"LOW" | "MED" | "HIGH">("MED");
+  const [policyLogic, setPolicyLogic] = useState("standard");
+  
+  // Engine ref to persist across renders
+  const engineRef = useRef<SimulationEngine | null>(null);
+  const isRunningRef = useRef(isRunning);
+  
+  // Keep ref in sync with state
+  useEffect(() => {
+    isRunningRef.current = isRunning;
+  }, [isRunning]);
 
   const refreshStats = async () => {
     try {
@@ -45,15 +99,6 @@ export const SimulationProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const refreshHospitals = async () => {
-    try {
-      const data = await ApiClient.getHospitals();
-      const hospitalMap = data.reduce((acc, h) => ({ ...acc, [h.id]: h }), {});
-      setHospitals(hospitalMap);
-    } catch (error: any) {
-      console.warn("Could not fetch hospitals:", error);
-    }
-  };
 
   const refreshHospital = async (id: string) => {
     try {
@@ -64,22 +109,276 @@ export const SimulationProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const refreshHospitals = async () => {
+    try {
+      const data = await ApiClient.getHospitals();
+      const map: Record<string, Hospital> = {};
+      data.forEach((h) => (map[h.id] = h));
+      setHospitals((prev) => ({ ...prev, ...map }));
+    } catch (error) {
+      console.error("Failed to fetch hospitals", error);
+    }
+  };
+  
+  // Add log entry helper
+  const addLog = useCallback((level: LogEntry["level"], message: string) => {
+    const timestamp = new Date().toLocaleTimeString("en-US", {
+      hour12: false,
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    });
+    const newLog: LogEntry = {
+      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      timestamp,
+      level,
+      message,
+    };
+    setLogs((prev) => [...prev.slice(-99), newLog]);
+  }, []);
+  
+  // Handle simulation events
+  const handleSimulationEvent = useCallback(
+    (event: SimulationEvent) => {
+      const { type, data } = event;
+
+      // Persist to Supabase (non-blocking)
+      if (persistenceEnabled) {
+        handleSimulationEventPersistence(event).catch(console.error);
+      }
+
+      switch (type) {
+        case "SURGE_TRIGGERED":
+          addLog("WARN", `⚡ SURGE: ${data.count} patients injected into the system`);
+          break;
+        case "DISTRESS_DETECTED":
+          addLog(
+            "CRITICAL",
+            `🚨 DISTRESS: ${getShortPatientId(data.patientId)} escalated from priority ${data.oldPriority} → ${data.newPriority}`
+          );
+          break;
+        case "PATIENT_ADMITTED":
+          addLog(
+            "SUCCESS",
+            `✅ ${getShortPatientId(data.patientId)} admitted to ${data.hospitalName} (${data.department})`
+          );
+          break;
+        case "PATIENT_DISCHARGED":
+          addLog(
+            "INFO",
+            `📤 ${getShortPatientId(data.patientId)} discharged from ${data.hospitalName}`
+          );
+          setProcessedCount((prev) => prev + 1);
+          break;
+        case "REDIRECTION":
+          addLog(
+            "INFO",
+            `🔄 ${getShortPatientId(data.patientId)} redirected: ${data.fromHospital} → ${data.toHospital}`
+          );
+          break;
+        case "STAFF_DROPOUT":
+          addLog("WARN", `👨‍⚕️ Staff dropout: ${data.percent}% reduction in staff`);
+          break;
+      }
+    },
+    [addLog, persistenceEnabled]
+  );
+  
+  // Handle state changes from simulation
+  const handleStateChange = useCallback((state: SimulationState) => {
+    setSimStats(state.stats);
+    
+    // Update hospitals from simulation engine
+    const hospitalMap: Record<string, Hospital> = {};
+    state.hospitals.forEach(h => {
+      hospitalMap[h.id] = h;
+    });
+    setHospitals(hospitalMap);
+    
+    // Calculate avg wait time estimate
+    if (state.stats.totalDoctorsActive > 0) {
+      const estimate = Math.round(
+        (state.stats.totalPatientsWaiting / state.stats.totalDoctorsActive) * 5
+      );
+      setAvgWaitTime(estimate);
+    }
+  }, []);
+  
+  // Handle Run/Pause Simulation
+  const handleRunToggle = useCallback(async () => {
+    if (!engineRef.current) return;
+
+    const newState = !isRunning;
+
+    if (newState) {
+      setIsLoading(true);
+      addLog("SYSTEM", "🚀 Initializing simulation with 10 hospitals...");
+
+      // Initialize with 10 hospitals
+      engineRef.current.init(10);
+
+      // Persist hospitals to database BEFORE starting simulation
+      if (persistenceEnabled) {
+        const hospitals = engineRef.current.getState().hospitals;
+        addLog("SYSTEM", "💾 Persisting hospitals to database...");
+        await persistHospitals(hospitals);
+        addLog("SUCCESS", `✅ ${hospitals.length} hospitals persisted to database`);
+      }
+
+      // Now start the simulation
+      engineRef.current.start();
+
+      // Start periodic sync to Supabase (every 10 seconds)
+      if (persistenceEnabled) {
+        startPeriodicSync(
+          () => engineRef.current?.getState().hospitals || [],
+          () => engineRef.current?.getState().stats || {
+            totalHospitals: 0,
+            totalPatientsWaiting: 0,
+            totalDoctorsActive: 0,
+            surgeActive: false,
+            recentRedirections: 0,
+          },
+          10000
+        );
+        persistSimulationLog("SYSTEM", "Simulation started with Supabase persistence");
+      }
+
+      setIsRunning(true);
+      addLog("SUCCESS", "✅ Simulation started with 10 hospitals");
+
+      const stats = engineRef.current.getFormattedStats();
+      addLog("INFO", `📊 Stats: ${stats.totalHospitals} hospitals ready`);
+
+      setIsLoading(false);
+    } else {
+      engineRef.current.pause();
+      stopPeriodicSync();
+      if (persistenceEnabled) {
+        persistSimulationLog("SYSTEM", "Simulation paused");
+      }
+      setIsRunning(false);
+      addLog("SYSTEM", "⏸️ Simulation paused");
+    }
+  }, [isRunning, addLog, persistenceEnabled]);
+
+  // Handle Reset
+  const handleReset = useCallback(async () => {
+    if (!engineRef.current) return;
+
+    setIsLoading(true);
+    addLog("SYSTEM", "🔄 Resetting simulation...");
+
+    // Stop sync and flush logs
+    stopPeriodicSync();
+    await forceFlushLogs();
+
+    // Clear Supabase data if persistence is enabled
+    if (persistenceEnabled) {
+      addLog("SYSTEM", "🗑️ Clearing database records...");
+      await clearSimulationData();
+    }
+
+    engineRef.current.reset();
+
+    setIsRunning(false);
+    setPatientSurge(2.0);
+    setStaffDropout(0);
+    setDistressFreq("LOW");
+    setLogs([]);
+    setSimStats(null);
+    setProcessedCount(0);
+    setAvgWaitTime(0);
+
+    addLog("SUCCESS", "✅ Simulation reset complete");
+
+    setIsLoading(false);
+  }, [addLog, persistenceEnabled]);
+  
+  // Trigger Surge
+  const triggerSurge = useCallback((count?: number) => {
+    if (!engineRef.current) return;
+
+    if (!isRunning) {
+      console.warn("Start the simulation first before triggering a surge.");
+      return;
+    }
+
+    const surgeCount = count ?? Math.max(Math.floor(patientSurge * 15), 10);
+    addLog("WARN", `⚡ Triggering patient surge: ${surgeCount} patients...`);
+
+    engineRef.current.triggerSurge(surgeCount);
+  }, [isRunning, patientSurge, addLog]);
+
+  // Trigger Staff Dropout
+  const triggerStaffDropout = useCallback((percent: number) => {
+    if (!engineRef.current || !isRunning) return;
+
+    if (percent > 0) {
+      engineRef.current.triggerStaffDropout(percent);
+      addLog("WARN", `👨‍⚕️ Manual staff dropout triggered: ${percent}%`);
+    }
+  }, [isRunning, addLog]);
+  
+  // Initialize simulation engine
   useEffect(() => {
-    // Initial fetch
-    refreshStats();
-    refreshHospitals();
+    engineRef.current = new SimulationEngine(handleSimulationEvent, handleStateChange);
+    addLog("SYSTEM", "🏥 Frontend Simulation Engine initialized");
 
-    // Setup Socket
-    socketService.connect();
+    // Load historical logs from Supabase
+    if (persistenceEnabled) {
+      loadHistoricalLogs(30).then((historicalLogs) => {
+        if (historicalLogs.length > 0) {
+          setLogs((prev) => [...historicalLogs.reverse(), ...prev].slice(-100));
+          addLog("SYSTEM", `📜 Loaded ${historicalLogs.length} historical logs from database`);
+        }
+      }).catch(console.error);
+    }
 
-    // Subscribe to city-wide statistics updates (every 2 seconds)
+    return () => {
+      if (engineRef.current) {
+        engineRef.current.reset();
+      }
+      stopPeriodicSync();
+      forceFlushLogs();
+    };
+  }, []);
+  
+  // Update engine config when controls change
+  useEffect(() => {
+    if (engineRef.current) {
+      engineRef.current.updateConfig({
+        patientSurgeMultiplier: patientSurge,
+        staffDropoutPercent: staffDropout,
+        distressFrequency: distressFreq,
+        policyLogic: policyLogic,
+      });
+    }
+  }, [patientSurge, staffDropout, distressFreq, policyLogic]);
+
+  useEffect(() => {
+    // Initial fetch only if simulation is not running
+    if (!isRunning) {
+      refreshStats();
+      refreshHospitals();
+    }
+  }, [isRunning]);
+
+  useEffect(() => {
+    // Subscribe to city-wide statistics updates (only when simulation is NOT running)
     socketService.subscribe("/topic/stats", (newStats: CityStats) => {
-      setStats(newStats);
+      // Use ref to get current value, not captured value
+      if (!isRunningRef.current) {
+        setStats(newStats);
+      }
     });
 
-    // Subscribe to individual hospital updates
+    // Subscribe to individual hospital updates (only when simulation is NOT running)
     socketService.subscribe("/topic/hospital", (newHospital: Hospital) => {
-      setHospitals((prev) => ({ ...prev, [newHospital.id]: newHospital }));
+      // Use ref to get current value, not captured value
+      if (!isRunningRef.current) {
+        setHospitals((prev) => ({ ...prev, [newHospital.id]: newHospital }));
+      }
     });
 
     // Subscribe to real-time system events (patient admissions, surges, distress, etc.)
@@ -92,15 +391,15 @@ export const SimulationProvider = ({ children }: { children: ReactNode }) => {
         console.warn(`⚠️ SURGE: ${event.count} patients injected`);
       } else if (event.type === "DISTRESS_DETECTED") {
         console.error(
-          `🚨 DISTRESS: Patient ${event.patientId} at priority ${event.newPriority}`,
+          `🚨 DISTRESS: ${getShortPatientId(event.patientId)} at priority ${event.newPriority}`,
         );
       } else if (event.type === "PATIENT_ADMITTED") {
         console.info(
-          `✅ ADMITTED: Patient ${event.patientId} to ${event.hospitalId}`,
+          `✅ ADMITTED: ${getShortPatientId(event.patientId)} to ${event.hospitalId}`,
         );
       } else if (event.type === "PATIENT_REDIRECTED") {
         console.info(
-          `🔄 REDIRECT: ${event.patientId} moved ${event.sourceHospitalId} -> ${event.targetHospitalId}`,
+          `🔄 REDIRECT: ${getShortPatientId(event.patientId)} moved ${event.sourceHospitalId} -> ${event.targetHospitalId}`,
         );
         setRedirectionEvents((prev) => [event, ...prev].slice(0, 100)); // Keep last 100
         setTotalRedirections((prev) => prev + 1); // Track total count
@@ -128,7 +427,10 @@ export const SimulationProvider = ({ children }: { children: ReactNode }) => {
     });
 
     return () => {
-      socketService.disconnect();
+      // Clean up subscriptions when component unmounts
+      socketService.unsubscribe("/topic/stats");
+      socketService.unsubscribe("/topic/hospital");
+      socketService.unsubscribe("/topic/events");
     };
   }, [socketService]);
 
@@ -140,9 +442,35 @@ export const SimulationProvider = ({ children }: { children: ReactNode }) => {
         redirectionEvents,
         activeTreatments,
         totalRedirections,
-        isConnected: socketService.isConnected(),
+        isConnected,
         refreshStats,
         refreshHospital,
+        
+        // Simulation engine state
+        isRunning,
+        isLoading,
+        logs,
+        simStats,
+        processedCount,
+        avgWaitTime,
+        persistenceEnabled,
+        
+        // Simulation engine controls
+        handleRunToggle,
+        handleReset,
+        triggerSurge,
+        triggerStaffDropout,
+        
+        // Configuration
+        patientSurge,
+        setPatientSurge,
+        staffDropout,
+        setStaffDropout,
+        distressFreq,
+        setDistressFreq,
+        policyLogic,
+        setPolicyLogic,
+        setPersistenceEnabled,
       }}
     >
       {children}

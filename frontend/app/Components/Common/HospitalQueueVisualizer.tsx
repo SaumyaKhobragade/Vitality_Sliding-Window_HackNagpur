@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useSimulation } from "../Context/SimulationContext";
 import { motion, AnimatePresence } from "framer-motion";
 import { Activity, User, ArrowRight, Clock } from "lucide-react";
+import { formatPatientId, getShortPatientId } from "@/lib/utils";
 
 const HospitalQueueVisualizer = () => {
   const { hospitals, activeTreatments } = useSimulation();
@@ -65,7 +66,6 @@ const HospitalBoard = ({
         {/* Active Treatment Lane - Real Data or Fallback */}
         <TreatmentLane
           treatments={activeTreatments}
-          fallbackCount={hospital.activeTreatments || 0}
         />
       </div>
     </div>
@@ -143,7 +143,7 @@ const TreatmentLane = ({ treatments }: { treatments: any[] }) => {
               <div className="w-1.5 h-8 bg-green-500 rounded-full"></div>
               <div className="flex-1">
                 <div className="text-xs font-bold text-gray-900 dark:text-white flex justify-between">
-                  <span>{t.patientId.substring(0, 8)}...</span>
+                  <span>{getShortPatientId(t.patientId)}</span>
                   <Activity className="w-3 h-3 text-green-500 animate-pulse" />
                 </div>
                 <div className="text-[10px] text-gray-500 mt-1">
@@ -164,19 +164,36 @@ const TreatmentLane = ({ treatments }: { treatments: any[] }) => {
 };
 
 const PatientCard = ({ patient }: { patient: any }) => {
+  const isPendingDistress = patient.distressStatus === "PENDING";
+  const isConfirmedDistress = patient.distressStatus === "CONFIRMED";
+
   return (
     <motion.div
       layout
       initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
+      animate={{
+        opacity: 1,
+        y: 0,
+        backgroundColor: isPendingDistress
+          ? "rgba(245, 158, 11, 0.1)"
+          : isConfirmedDistress
+            ? "rgba(239, 68, 68, 0.1)"
+            : "transparent",
+      }}
       exit={{ opacity: 0, x: -10 }}
-      className="bg-white dark:bg-surface-dark p-2 rounded shadow-sm border border-gray-100 dark:border-gray-700 flex items-center gap-2"
+      className={`p-2 rounded shadow-sm border ${
+        isPendingDistress
+          ? "border-amber-400 animate-pulse bg-amber-50 dark:bg-amber-900/10"
+          : isConfirmedDistress
+            ? "border-red-500 bg-red-50 dark:bg-red-900/10"
+            : "bg-white dark:bg-surface-dark border-gray-100 dark:border-gray-700"
+      } flex items-center gap-2`}
     >
       <div
         className={`w-1.5 h-8 rounded-full ${
-          patient.baseSeverity >= 8
+          isConfirmedDistress || patient.baseSeverity >= 8
             ? "bg-red-500"
-            : patient.baseSeverity >= 5
+            : isPendingDistress || patient.baseSeverity >= 5
               ? "bg-orange-400"
               : "bg-blue-400"
         }`}
@@ -184,16 +201,27 @@ const PatientCard = ({ patient }: { patient: any }) => {
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between">
-          <span className="text-xs font-bold text-gray-700 dark:text-gray-200 truncate">
-            {patient.id}
+          <span className="text-xs font-bold text-gray-700 dark:text-gray-200 truncate flex items-center gap-1">
+            {getShortPatientId(patient.id, patient.displayId)}
+            {isPendingDistress && (
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping"></span>
+            )}
+            {isConfirmedDistress && (
+              <Activity className="w-3 h-3 text-red-500" />
+            )}
           </span>
           <span className="text-[10px] text-gray-400">
             Sev: {patient.baseSeverity}
           </span>
         </div>
-        <div className="flex items-center gap-1 text-[10px] text-gray-400 mt-0.5">
-          <Clock className="w-3 h-3" />
-          <span>Wait: {(Date.now() - patient.arrivalTime) / 1000}s</span>
+        <div className="flex items-center justify-between text-[10px] text-gray-400 mt-0.5">
+          <div className="flex items-center gap-1">
+            <Clock className="w-3 h-3" />
+            <span>{(Date.now() - patient.arrivalTime) / 1000}s</span>
+          </div>
+          <span className="font-mono text-[9px] font-bold text-blue-500">
+            P:{Math.round(patient.dynamicPriority)}
+          </span>
         </div>
       </div>
     </motion.div>

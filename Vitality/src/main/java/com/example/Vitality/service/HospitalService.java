@@ -30,11 +30,17 @@ public class HospitalService {
 
     private final SurgeDetectorService surgeDetectorService;
     private final WebSocketService webSocketService;
+    private final TriagePolicyService triagePolicyService;
 
     @Autowired
-    public HospitalService(SurgeDetectorService surgeDetectorService, WebSocketService webSocketService) {
+    public HospitalService(SurgeDetectorService surgeDetectorService, WebSocketService webSocketService, TriagePolicyService triagePolicyService) {
         this.surgeDetectorService = surgeDetectorService;
         this.webSocketService = webSocketService;
+        this.triagePolicyService = triagePolicyService;
+        
+        // Inject global policy into Patient model
+        Patient.policyService = triagePolicyService;
+        
         webSocketService.broadcastEvent(Map.of("type", "SYSTEM_INIT", "message", "HospitalService Online"));
     }
 
@@ -249,6 +255,10 @@ public class HospitalService {
         return masterPatientIndex.get(patientId);
     }
 
+    public java.util.Collection<Patient> getAllActivePatients() {
+        return masterPatientIndex.values();
+    }
+
     public java.util.Collection<Hospital> getAllHospitals() {
         return cityHospitals.values();
     }
@@ -323,6 +333,18 @@ public class HospitalService {
         System.out.println(">>> 🏥 SCALING ALL HOSPITALS by factor: " + factor + " <<<");
         for (Hospital h : cityHospitals.values()) {
             scaleStaffByFactor(h.getId(), factor);
+        }
+    }
+
+    public void updatePatientDistress(String patientId, com.example.Vitality.model.DistressStatus status) {
+        Patient p = masterPatientIndex.get(patientId);
+        if (p != null) {
+            System.out.println(">>> DISTRESS UPDATE: Patient " + patientId + " status " + status);
+            p.updateDistress(status);
+            // Note: Queue might not re-sort immediately until polling, but since PriorityBlockingQueue is used,
+            // we rely on the next poll() or iteration to reflect changes. 
+            // For strict re-ordering, we would need to remove and re-add, but that's expensive O(N).
+            // Given the simulation loop, eventual consistency (milliseconds) is acceptable.
         }
     }
 }

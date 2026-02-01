@@ -1,0 +1,21 @@
+﻿# Technology Stack
+
+## Frontend
+- **Framework:** [Next.js](https://nextjs.org/) (version 16.1.6, App Router)
+- **Language:** [TypeScript](https://www.typescriptlang.org/)
+- **Styling:** [Tailwind CSS](https://tailwindcss.com/) (version 4.0)
+- **UI Components:** [Shadcn/UI](https://ui.shadcn.com/) (built on [Radix UI](https://www.radix-ui.com/))
+- **Data Visualization:** [Chart.js](https://www.chartjs.org/) with [react-chartjs-2](https://react-chartjs2.js.org/)
+- **Real-time:** [@stomp/stompjs](https://stomp-js.github.io/), [sockjs-client](https://github.com/sockjs/sockjs-client)
+- **Authentication & Backend:** [Supabase](https://supabase.com/) (Auth, Database, Realtime)
+- **Icons:** [Lucide React](https://lucide.dev/)
+- **Tables:** [TanStack Table](https://tanstack.com/table/v8)
+- **State Management:** [Zustand](https://zustand-demo.pmnd.rs/) (Simulation and Event Stores)
+
+## Backend (Simulation)
+- **Utilities:** \clsx\, \	ailwind-merge\, \class-variance-authority\
+
+## Development Tools
+- **Testing:** [Vitest](https://vitest.dev/), [React Testing Library](https://testing-library.com/docs/react-testing-library/intro/)
+- **Linter:** [ESLint](https://eslint.org/)
+- **Package Manager:** npm (inferred from \package-lock.json\)

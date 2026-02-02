@@ -632,7 +632,7 @@ const AlertsPage = () => {
                   <div className="flex-1 pr-8">
                     <div className="flex justify-between items-end mb-2">
                       <span className="text-sm font-medium text-text-secondary-light dark:text-text-secondary-dark">
-                        Severity Level
+                        Confidence Score
                       </span>
                       <span className="text-lg font-bold text-red-500">
                         {Math.round(selectedVideoClip.confidence * 10)}/10

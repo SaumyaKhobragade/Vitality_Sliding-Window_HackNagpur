@@ -321,7 +321,7 @@ const DecisionMonitorPage = () => {
             trend="-"
             trendColor="neutral"
           />
-          <StatsCard
+          {/* <StatsCard
             title="Avg Wait Saved"
             value={(() => {
               const redirectCount = totalRedirections > 0
@@ -336,7 +336,7 @@ const DecisionMonitorPage = () => {
             icon={Timer}
             trend={totalRedirections > 0 || logs.filter(l => l.message.includes('🔄')).length > 0 ? "Estimated" : "-"}
             trendColor="green"
-          />
+          /> */}
           {/* <StatsCard
             title="Failed Redirects"
             value={decisions.filter((d) => d.status === "failed").length}

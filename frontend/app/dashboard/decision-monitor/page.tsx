@@ -68,13 +68,12 @@ const StatsCard = ({
       <p className="text-4xl font-bold text-foreground">{value}</p>
       {trend && (
         <div
-          className={`flex items-center gap-1 text-sm font-semibold px-2 py-0.5 rounded-full ${
-            trendColor === "green"
-              ? "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400"
-              : trendColor === "red"
-                ? "bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400"
-                : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400"
-          }`}
+          className={`flex items-center gap-1 text-sm font-semibold px-2 py-0.5 rounded-full ${trendColor === "green"
+            ? "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400"
+            : trendColor === "red"
+              ? "bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400"
+              : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400"
+            }`}
         >
           {trendColor === "green" && <TrendingUp className="h-4 w-4" />}
           <span>{trend}</span>
@@ -169,13 +168,8 @@ const DecisionMonitorPage = () => {
   const [statusFilter, setStatusFilter] = useState("any");
   const [decisionTypeFilter, setDecisionTypeFilter] = useState("all");
   const [loading, setLoading] = useState(true);
-  const [mounted, setMounted] = useState(false);
-  const { hospitals, redirectionEvents, totalRedirections } = useSimulation();
-
-  // Fix hydration issues
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const { hospitals, redirectionEvents, totalRedirections, logs, avgWaitTime } = useSimulation();
+  const { socketService } = useRealtime();
 
   const fetchDecisions = useCallback(async () => {
     setLoading(true);
@@ -332,25 +326,36 @@ const DecisionMonitorPage = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <StatsCard
             title="Total Redirects"
-            value={totalRedirections}
+            value={totalRedirections > 0
+              ? totalRedirections
+              : logs.filter(l => l.message.includes('🔄') || l.message.toLowerCase().includes('redirect')).length}
             icon={Route}
             trend="-"
             trendColor="neutral"
           />
           <StatsCard
             title="Avg Wait Saved"
-            value="-"
+            value={(() => {
+              const redirectCount = totalRedirections > 0
+                ? totalRedirections
+                : logs.filter(l => l.message.includes('🔄') || l.message.toLowerCase().includes('redirect')).length;
+              // Estimate: each redirect saves ~20-40% of average wait time
+              if (redirectCount > 0 && avgWaitTime > 0) {
+                return `${Math.round(avgWaitTime * 0.3 * redirectCount)}m`;
+              }
+              return redirectCount > 0 ? `~${Math.round(redirectCount * 5)}m` : '-';
+            })()}
             icon={Timer}
-            trend="-"
-            trendColor="neutral"
+            trend={totalRedirections > 0 || logs.filter(l => l.message.includes('🔄')).length > 0 ? "Estimated" : "-"}
+            trendColor="green"
           />
-          <StatsCard
+          {/* <StatsCard
             title="Failed Redirects"
             value={decisions.filter((d) => d.status === "failed").length}
             icon={AlertTriangle}
             trend="-"
             trendColor="neutral"
-          />
+          /> */}
         </div>
 
         {/* Live Redirection Events Section */}
@@ -360,72 +365,106 @@ const DecisionMonitorPage = () => {
             <div className="flex items-center gap-2">
               <span className="inline-block w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
               <span className="text-xs text-muted-foreground">
-                Real-time • {totalRedirections} total
+                Real-time • {totalRedirections > 0 ? totalRedirections : logs.filter(l => l.message.includes('🔄') || l.message.toLowerCase().includes('redirect')).length} total
               </span>
             </div>
           </div>
           <div className="space-y-3 max-h-96 overflow-y-auto">
-            {redirectionEvents.length === 0 && (
-              <p className="text-muted-foreground text-sm text-center py-8">
-                No redirection events yet. Start the simulation to see redirections appear here in
-                real-time.
-              </p>
-            )}
-            {redirectionEvents.length > 0 && (
-              <p className="text-xs text-muted-foreground mb-2">
-                Showing {Math.min(50, redirectionEvents.length)} of {redirectionEvents.length} events
-              </p>
-            )}
-            {redirectionEvents.slice(0, 50).map((event, idx) => (
-              <div
-                key={`${event.patientId}-${event.timestamp}-${idx}`}
-                className="flex items-center justify-between p-4 bg-background rounded-lg border border-border hover:border-primary/50 transition-colors"
-              >
-                <div className="flex items-center gap-4 flex-1">
-                  <div className="flex items-center justify-center w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300">
-                    <Route className="h-5 w-5" />
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="font-mono text-sm font-medium text-primary">
-                        {getShortPatientId(event.patientId)}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        redirected
-                      </span>
+            {/* Show SSE-based redirection events if available */}
+            {redirectionEvents.length > 0 ? (
+              redirectionEvents.slice(0, 50).map((event, idx) => (
+                <div
+                  key={`${event.patientId}-${event.timestamp}-${idx}`}
+                  className="flex items-center justify-between p-4 bg-background rounded-lg border border-border hover:border-primary/50 transition-colors"
+                >
+                  <div className="flex items-center gap-4 flex-1">
+                    <div className="flex items-center justify-center w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300">
+                      <Route className="h-5 w-5" />
                     </div>
-                    <div className="flex items-center gap-2 text-sm">
-                      <span className="font-medium text-foreground">
-                        {event.sourceHospitalName ||
-                          getHospitalName(event.sourceHospitalId)}
-                      </span>
-                      <ArrowRight className="h-3 w-3 text-muted-foreground" />
-                      <span className="font-medium text-foreground">
-                        {event.targetHospitalName ||
-                          getHospitalName(event.targetHospitalId)}
-                      </span>
-                      {event.benefitScore !== undefined && (
-                        <>
-                          <span className="text-muted-foreground">•</span>
-                          <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">
-                            Benefit: {event.benefitScore.toFixed(2)}
-                          </span>
-                        </>
-                      )}
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-mono text-sm font-medium text-primary">
+                          {getShortPatientId(event.patientId)}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          redirected
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className="font-medium text-foreground">
+                          {event.sourceHospitalName ||
+                            getHospitalName(event.sourceHospitalId)}
+                        </span>
+                        <ArrowRight className="h-3 w-3 text-muted-foreground" />
+                        <span className="font-medium text-foreground">
+                          {event.targetHospitalName ||
+                            getHospitalName(event.targetHospitalId)}
+                        </span>
+                        {event.benefitScore !== undefined && (
+                          <>
+                            <span className="text-muted-foreground">•</span>
+                            <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+                              Benefit: {event.benefitScore.toFixed(2)}
+                            </span>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
+                  <div className="text-right">
+                    <span className="text-xs text-muted-foreground">
+                      {new Date(event.timestamp).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        second: "2-digit",
+                      })}
+                    </span>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <span className="text-xs text-muted-foreground">
-                    {new Date(event.timestamp).toLocaleTimeString([], {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                      second: "2-digit",
-                    })}
-                  </span>
-                </div>
-              </div>
-            ))}
+              ))
+            ) : (
+              // Fallback: Show log entries that contain redirection info
+              logs.filter(l => l.message.includes('🔄') || l.message.toLowerCase().includes('redirect')).length > 0 ? (
+                logs
+                  .filter(l => l.message.includes('🔄') || l.message.toLowerCase().includes('redirect'))
+                  .slice(0, 50)
+                  .map((log, idx) => (
+                    <div
+                      key={`log-${log.id}-${idx}`}
+                      className="flex items-center justify-between p-4 bg-background rounded-lg border border-border hover:border-primary/50 transition-colors"
+                    >
+                      <div className="flex items-center gap-4 flex-1">
+                        <div className="flex items-center justify-center w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300">
+                          <Route className="h-5 w-5" />
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${log.level === 'SUCCESS'
+                              ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300'
+                              : log.level === 'INFO'
+                                ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
+                                : 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-300'
+                              }`}>
+                              {log.level}
+                            </span>
+                          </div>
+                          <p className="text-sm text-foreground">{log.message}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-xs text-muted-foreground font-mono">
+                          {log.timestamp}
+                        </span>
+                      </div>
+                    </div>
+                  ))
+              ) : (
+                <p className="text-muted-foreground text-sm text-center py-8">
+                  No redirection events yet. Start the simulation or wait for
+                  redirections to appear in real-time.
+                </p>
+              )
+            )}
           </div>
         </div>
 
@@ -546,11 +585,10 @@ const DecisionMonitorPage = () => {
                     {/* Main Row */}
                     <TableRow
                       onClick={() => handleToggleRow(decision.id)}
-                      className={`cursor-pointer hover:bg-muted/50 ${
-                        expandedRow === decision.id
-                          ? "bg-primary/5 dark:bg-primary/5 border-l-4 border-l-primary"
-                          : ""
-                      }`}
+                      className={`cursor-pointer hover:bg-muted/50 ${expandedRow === decision.id
+                        ? "bg-primary/5 dark:bg-primary/5 border-l-4 border-l-primary"
+                        : ""
+                        }`}
                     >
                       <TableCell>
                         <span className="font-mono text-sm text-primary font-medium bg-primary/5 px-2 py-1 rounded">

@@ -15,7 +15,7 @@ import {
 import { Line } from "react-chartjs-2";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { useEffect, useState, useRef } from "react";
-import { CityStats } from "@/lib/types";
+import { CityStats, LogEntry } from "@/lib/types";
 
 // Register Chart.js components
 ChartJS.register(
@@ -84,6 +84,8 @@ interface LiveImpactAnalysisFrontendProps {
   avgWaitTime: number;
   processedCount: number;
   isRunning: boolean;
+  totalRedirections?: number;
+  logs?: LogEntry[];
 }
 
 export function LiveImpactAnalysisFrontend({
@@ -91,6 +93,8 @@ export function LiveImpactAnalysisFrontend({
   avgWaitTime,
   processedCount,
   isRunning,
+  totalRedirections = 0,
+  logs = [],
 }: LiveImpactAnalysisFrontendProps) {
   const [queueHistory, setQueueHistory] = useState<number[]>([]);
   const [doctorHistory, setDoctorHistory] = useState<number[]>([]);
@@ -231,20 +235,20 @@ export function LiveImpactAnalysisFrontend({
               Redirections
             </div>
             <div className="text-xl font-bold text-amber-700">
-              {stats?.recentRedirections || 0}
+              {totalRedirections > 0
+                ? totalRedirections
+                : logs.filter(l => l.message.includes('🔄') || l.message.toLowerCase().includes('redirect')).length || stats?.recentRedirections || 0}
             </div>
           </div>
           <div
-            className={`p-3 rounded-xl border transition-all duration-300 ${
-              stats?.surgeActive
+            className={`p-3 rounded-xl border transition-all duration-300 ${stats?.surgeActive
                 ? "bg-red-50 border-red-200 ring-2 ring-red-300 ring-opacity-50"
                 : "bg-purple-50 border-purple-100"
-            }`}
+              }`}
           >
             <div
-              className={`text-xs font-medium mb-1 flex items-center gap-1 ${
-                stats?.surgeActive ? "text-red-600" : "text-purple-600"
-              }`}
+              className={`text-xs font-medium mb-1 flex items-center gap-1 ${stats?.surgeActive ? "text-red-600" : "text-purple-600"
+                }`}
             >
               {stats?.surgeActive && (
                 <span className="inline-block w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
@@ -252,9 +256,8 @@ export function LiveImpactAnalysisFrontend({
               Surge Status
             </div>
             <div
-              className={`text-xl font-bold ${
-                stats?.surgeActive ? "text-red-700" : "text-purple-700"
-              }`}
+              className={`text-xl font-bold ${stats?.surgeActive ? "text-red-700" : "text-purple-700"
+                }`}
             >
               {stats?.surgeActive ? "🚨 ACTIVE" : "Normal"}
             </div>

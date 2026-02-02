@@ -21,6 +21,7 @@ export default function SimulationPage() {
     avgWaitTime,
     processedCount,
     persistenceEnabled,
+    totalRedirections,
 
     // Controls
     handleRunToggle,
@@ -63,11 +64,10 @@ export default function SimulationPage() {
         {/* Supabase Persistence Toggle */}
         <button
           onClick={() => setPersistenceEnabled(!persistenceEnabled)}
-          className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors ${
-            persistenceEnabled
-              ? "bg-blue-50 border border-blue-200 text-blue-800"
-              : "bg-neutral-100 border border-neutral-200 text-neutral-600"
-          }`}
+          className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors ${persistenceEnabled
+            ? "bg-blue-50 border border-blue-200 text-blue-800"
+            : "bg-neutral-100 border border-neutral-200 text-neutral-600"
+            }`}
         >
           <span
             className={`inline-block w-2 h-2 rounded-full ${persistenceEnabled ? "bg-blue-500" : "bg-neutral-400"}`}
@@ -78,9 +78,9 @@ export default function SimulationPage() {
         {/* Flood Hospitals Button */}
         <button
           onClick={() => floodHospitals()}
-          className="px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 transition-all bg-slate-800 cursor-pointer text-white hover:from-orange-600 hover:to-red-600 shadow-lg hover:shadow-xl"
+          className="px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 transition-all bg-slate-800 text-white hover:from-orange-600 hover:to-red-600 shadow-lg hover:shadow-xl"
         >
-          Flood Hospitals 
+          Flood Hospitals
         </button>
       </div>
       {/* Component 2: Chaos Controls */}
@@ -106,6 +106,8 @@ export default function SimulationPage() {
             avgWaitTime={avgWaitTime}
             processedCount={processedCount}
             isRunning={isRunning}
+            totalRedirections={totalRedirections}
+            logs={logs}
           />
         </div>
 

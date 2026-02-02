@@ -1,18 +1,16 @@
-import { LocationEdit, Mail, MapPin } from "lucide-react";
+import { HeartPulse, LocationEdit, Mail, MapPin } from "lucide-react";
 import Link from "next/link";
 import { CiLocationOn } from "react-icons/ci";
 
 export default function LandingFooter() {
     return (
         <footer className="border-t border-slate-200 bg-white py-12 dark:border-slate-800 dark:bg-background-dark">
-            <div className="mx-auto max-w-[960px] px-4 sm:px-6 lg:px-8">
+            <div className="mx-auto max-w-240 px-4 sm:px-6 lg:px-8">
                 <div className="grid grid-cols-1 gap-12 md:grid-cols-4">
                     <div className="md:col-span-1">
                         <div className="flex items-center gap-2 mb-6">
-                            <div className="flex size-6 items-center justify-center rounded bg-primary/10 text-primary">
-                                {/* icon */}
-                            </div>
-                            <span className="text-lg font-bold text-slate-900 dark:text-white">
+                            <HeartPulse size={35} />
+                            <span className="text-3xl font-bold text-slate-900 dark:text-white">
                                 Vitality
                             </span>
                         </div>
@@ -89,11 +87,11 @@ export default function LandingFooter() {
                         <ul className="space-y-3">
                             <li className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
                                 <Mail />
-                                contact@Vitality.gov
+                                
                             </li>
                             <li className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
                                 <MapPin />
-                                Washington, DC
+                                Nagpur, Maharashtra
                             </li>
                         </ul>
                     </div>
@@ -101,7 +99,7 @@ export default function LandingFooter() {
                 <div className="mt-12 border-t border-slate-200 pt-8 dark:border-slate-800">
                     <div className="flex flex-col items-center justify-between gap-4 md:flex-row">
                         <p className="text-sm text-slate-500 dark:text-slate-400">
-                            © 2024 Vitality. All rights reserved.
+                            © 2026 Vitality. All rights reserved.
                         </p>
                         <div className="flex gap-6">
                             <Link

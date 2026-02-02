@@ -40,7 +40,6 @@ import { Input } from "@/components/ui/input";
 import * as ApiClient from "@/lib/api-client";
 import { formatPatientId, getShortPatientId } from "@/lib/utils";
 import { useSimulation } from "@/app/Components/Context/SimulationContext";
-import { useRealtime } from "@/app/Components/Context/RealtimeContext";
 
 // Stats Card Component
 const StatsCard = ({
@@ -175,7 +174,9 @@ const DecisionMonitorPage = () => {
   const fetchDecisions = useCallback(async () => {
     setLoading(true);
     try {
+      console.log("Fetching redirection decisions...");
       const data = await ApiClient.getRedirectionDecisions();
+      console.log("Fetched decisions:", data.length, data);
       setDecisions(data);
     } catch (error) {
       console.error("Failed to load decisions", error);
@@ -221,47 +222,46 @@ const DecisionMonitorPage = () => {
 
   // Initial fetch
   useEffect(() => {
-    fetchDecisions();
-    fetchTreatments();
-  }, [fetchDecisions, fetchTreatments]);
+    if (mounted) {
+      console.log("Decision Monitor: Initial fetch");
+      fetchDecisions();
+      fetchTreatments();
+    }
+  }, [mounted, fetchDecisions, fetchTreatments]);
 
-  // Subscribe to SSE for real-time redirection events
+  // Refetch decisions when redirectionEvents change (from SimulationContext SSE subscription)
   useEffect(() => {
-    socketService.subscribe("/topic/events", (event: any) => {
-      // Refetch decisions when redirection events occur
-      if (event.type === "REDIRECTION" || event.type === "PATIENT_REDIRECTED") {
-        fetchDecisions();
-      }
-      // Refetch treatments on patient-related events
-      if (
-        [
-          "PATIENT_ADMITTED",
-          "PATIENT_DISCHARGED",
-          "TREATMENT_STARTED",
-          "TREATMENT_COMPLETED",
-        ].includes(event.type)
-      ) {
-        fetchTreatments();
-      }
-    });
+    if (mounted && redirectionEvents.length > 0) {
+      console.log("Decision Monitor: Refetching due to new redirection events", redirectionEvents.length);
+      fetchDecisions();
+    }
+  }, [mounted, redirectionEvents.length, fetchDecisions]);
 
-    return () => {
-      socketService.unsubscribe("/topic/events");
-    };
-  }, [socketService, fetchDecisions, fetchTreatments]);
+  // Debug: Log context data
+  useEffect(() => {
+    console.log("Decision Monitor Context State:", {
+      hospitalsCount: Object.keys(hospitals).length,
+      redirectionEventsCount: redirectionEvents.length,
+      totalRedirections,
+      decisionsCount: decisions.length,
+      loading,
+      mounted
+    });
+  }, [hospitals, redirectionEvents, totalRedirections, decisions, loading, mounted]);
 
   const handleToggleRow = (id: string) => {
     setExpandedRow(expandedRow === id ? null : id);
   };
 
-  const getHospitalName = (id: string) => {
+  const getHospitalName = (id: string, fallbackName?: string) => {
+    if (fallbackName) return fallbackName;
     return hospitals[id]?.name || id;
   };
 
   // Filter data based on search and filters
   const filteredDecisions = decisions.filter((decision) => {
-    const fromName = getHospitalName(decision.fromHospital);
-    const toName = getHospitalName(decision.toHospital);
+    const fromName = getHospitalName(decision.fromHospital, decision.fromHospitalName);
+    const toName = getHospitalName(decision.toHospital, decision.toHospitalName);
 
     const matchesSearch =
       searchQuery === "" ||
@@ -278,6 +278,18 @@ const DecisionMonitorPage = () => {
 
     return matchesSearch && matchesStatus && matchesDecisionType;
   });
+
+  // Prevent hydration mismatch
+  if (!mounted) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent motion-reduce:animate-[spin_1.5s_linear_infinite]"></div>
+          <p className="mt-4 text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -586,11 +598,11 @@ const DecisionMonitorPage = () => {
                       <TableCell>
                         <div className="flex items-center gap-2 text-sm text-foreground">
                           <span className="font-medium">
-                            {getHospitalName(decision.fromHospital)}
+                            {getHospitalName(decision.fromHospital, decision.fromHospitalName)}
                           </span>
                           <ArrowRight className="h-4 w-4 text-muted-foreground" />
                           <span className="font-medium">
-                            {getHospitalName(decision.toHospital)}
+                            {getHospitalName(decision.toHospital, decision.toHospitalName)}
                           </span>
                         </div>
                       </TableCell>

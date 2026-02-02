@@ -71,7 +71,7 @@ export function NotificationPopover({
                 className="relative hover:bg-accent transition-colors"
                 aria-label={`Notifications (${unreadCount} unread)`}
             >
-                <Bell className="h-5 w-5" />
+                <Bell className="h-8 w-8" />
                 {unreadCount > 0 && (
                     <Badge
                         variant="destructive"
@@ -93,7 +93,7 @@ export function NotificationPopover({
                     className="relative hover:bg-accent transition-colors"
                     aria-label={`Notifications (${unreadCount} unread)`}
                 >
-                    <Bell className="h-5 w-5" />
+                    <Bell className="h-8 w-8" />
                     {unreadCount > 0 && (
                         <Badge
                             variant="destructive"
@@ -111,7 +111,7 @@ export function NotificationPopover({
             >
                 <div className="flex items-center justify-between p-4 border-b border-neutral-border">
                     <div className="flex items-center gap-2">
-                        <Bell className="h-5 w-5 text-brand-primary" />
+                        <Bell className="h-8 w-8 text-brand-primary" />
                         <h3 className="font-semibold text-neutral-text-primary">
                             Notifications
                         </h3>
@@ -123,7 +123,7 @@ export function NotificationPopover({
                     )}
                 </div>
 
-                <div className="max-h-[400px] overflow-y-auto">
+                <div className="max-h-100 overflow-y-auto">
                     {notifications.length === 0 ? (
                         <div className="p-8 text-center text-neutral-text-muted">
                             <Bell className="h-12 w-12 mx-auto mb-2 opacity-20" />
@@ -142,7 +142,7 @@ export function NotificationPopover({
                                     )}
                                 >
                                     <div className="flex gap-3">
-                                        <div className="flex-shrink-0 mt-0.5">
+                                        <div className="shrink-0 mt-0.5">
                                             {getNotificationIcon(notification.type)}
                                         </div>
                                         <div className="flex-1 min-w-0">
@@ -158,7 +158,7 @@ export function NotificationPopover({
                                                     {notification.title}
                                                 </p>
                                                 {!notification.read && (
-                                                    <div className="h-2 w-2 rounded-full bg-brand-primary flex-shrink-0 mt-1" />
+                                                    <div className="h-2 w-2 rounded-full bg-brand-primary shrink-0 mt-1" />
                                                 )}
                                             </div>
                                             <p className="text-xs text-neutral-text-secondary mb-2 line-clamp-2">

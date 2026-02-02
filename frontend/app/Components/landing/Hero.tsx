@@ -6,7 +6,7 @@ export default function LandingHero() {
             <div className="w-full h-screen">
                 <div className="relative overflow-hidden  bg-slate-900 shadow-xl ring-1 ring-slate-200 dark:ring-slate-800">
                     <div className="absolute inset-0 z-0">
-                        <div className="absolute inset-0 bg-gradient-to-r from-slate-900/90 to-slate-900/40 z-10"></div>
+                        <div className="absolute inset-0 bg-linear-to-r from-slate-900/90 to-slate-900/40 z-10"></div>
                         <div
                             className="h-full w-full bg-cover bg-center opacity-60"
                             data-alt="Abstract blue data visualization network resembling neural pathways or city infrastructure"

@@ -529,8 +529,9 @@ export const SimulationProvider = ({ children }: { children: ReactNode }) => {
         const sourceName = event.sourceHospitalName || event.sourceHospitalId;
         const targetName = event.targetHospitalName || event.targetHospitalId;
         console.info(
-          ` REDIRECT: ${getShortPatientId(event.patientId)} moved ${sourceName} -> ${targetName}`,
+          `🔄 REDIRECT: ${getShortPatientId(event.patientId)} moved ${sourceName} -> ${targetName}`,
         );
+        console.log("Full redirection event:", event);
         addLog(
           "SUCCESS",
           ` Redirected: Patient ${getShortPatientId(event.patientId)} from ${sourceName} → ${targetName}`

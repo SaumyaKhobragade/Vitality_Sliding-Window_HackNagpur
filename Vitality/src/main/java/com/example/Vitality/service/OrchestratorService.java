@@ -82,33 +82,69 @@ public class OrchestratorService {
                 break;
 
             Patient p = (Patient) obj;
-            String bestTarget = evaluateRedirection(p.getId(), source.getId());
+            RedirectionEvaluation evaluation = evaluateRedirectionWithScore(p.getId(), source.getId());
 
-            if (bestTarget != null && !bestTarget.equals(source.getId())) {
-                System.out.println(String.format("  >> Attempting transfer: %s from %s to %s",
-                        p.getId(), source.getId(), bestTarget));
-                boolean success = hospitalService.transferPatient(p.getId(), source.getId(), bestTarget);
+            if (evaluation != null && !evaluation.targetHospitalId.equals(source.getId())) {
+                System.out.println(String.format("  >> Attempting transfer: %s from %s to %s (Benefit: %.2f)",
+                        p.getId(), source.getId(), evaluation.targetHospitalId, evaluation.benefitScore));
+                boolean success = hospitalService.transferPatient(p.getId(), source.getId(), evaluation.targetHospitalId);
                 if (success) {
                     moved++;
                     System.out.println(String.format("  >> ✅ Transfer SUCCESS: %s moved to %s",
-                            p.getId(), bestTarget));
+                            p.getId(), evaluation.targetHospitalId));
 
                     // Broadcast redirection event to frontend
-                    Hospital targetHospital = hospitalService.getHospital(bestTarget);
+                    Hospital targetHospital = hospitalService.getHospital(evaluation.targetHospitalId);
                     Map<String, Object> event = new HashMap<>();
                     event.put("type", "PATIENT_REDIRECTED");
                     event.put("patientId", p.getId());
                     event.put("sourceHospitalId", source.getId());
                     event.put("sourceHospitalName", source.getName());
-                    event.put("targetHospitalId", bestTarget);
-                    event.put("targetHospitalName", targetHospital != null ? targetHospital.getName() : bestTarget);
+                    event.put("targetHospitalId", evaluation.targetHospitalId);
+                    event.put("targetHospitalName", targetHospital != null ? targetHospital.getName() : evaluation.targetHospitalId);
                     event.put("severity", p.getSeverity());
+                    event.put("benefitScore", evaluation.benefitScore);
                     event.put("timestamp", System.currentTimeMillis());
                     event.put("message", "🔄 Patient " + p.getId().substring(0, 8) + " redirected from "
                             + source.getName() + " to "
-                            + (targetHospital != null ? targetHospital.getName() : bestTarget));
+                            + (targetHospital != null ? targetHospital.getName() : evaluation.targetHospitalId));
+                    
+                    System.out.println("  >> 📡 Broadcasting PATIENT_REDIRECTED event via WebSocket and SSE");
                     webSocketService.broadcastEvent(event);
                     sseService.broadcastEvent(event);
+
+                    // Persist redirection decision to database (non-critical)
+                    try {
+                        Department dept = hospitalService.getDepartmentForSeverity(p.getBaseSeverity());
+                        int sourceQueue = source.getDepartmentQueueSize(dept);
+                        int targetQueue = targetHospital != null ? targetHospital.getDepartmentQueueSize(dept) : 0;
+                        
+                        // Create detailed reason
+                        String reason = String.format(
+                            "Benefit score: %.2f | Source %s queue: %d patients | Target %s queue: %d patients | Distance: %.1f units | Patient severity: %d",
+                            evaluation.benefitScore,
+                            dept.name(),
+                            sourceQueue,
+                            dept.name(),
+                            targetQueue,
+                            evaluation.distance,
+                            p.getBaseSeverity()
+                        );
+                        
+                        // Determine decision type based on benefit score
+                        String decisionType = determineDecisionType(evaluation.benefitScore, sourceQueue, targetQueue);
+                        
+                        // Calculate dynamic confidence score
+                        int confidenceScore = calculateDynamicConfidenceScore(evaluation, source, targetHospital, p);
+                        
+                        boolean saved = redirectionPersistenceService.saveRedirectionDecision(
+                                p, source, targetHospital, reason, decisionType, confidenceScore, "completed");
+                        if (saved) {
+                            System.out.println("  >> 💾 Redirection saved to database");
+                        }
+                    } catch (Exception e) {
+                        System.err.println("  >> ⚠️  Failed to persist redirection to database: " + e.getMessage());
+                    }
                 } else {
                     System.out.println(
                             String.format("  >> ❌ Transfer FAILED: %s could not be moved (likely already treating)",
@@ -129,6 +165,7 @@ public class OrchestratorService {
     private final SurgeDetectorService surgeDetectorService;
     private final WebSocketService webSocketService;
     private final SseService sseService;
+    private final RedirectionPersistenceService redirectionPersistenceService;
 
     // Redirection threshold: allow redirections even with small negative benefits
     private static final double MIN_REDIRECT_BENEFIT = -2.0;
@@ -137,11 +174,13 @@ public class OrchestratorService {
 
     @Autowired
     public OrchestratorService(HospitalService hospitalService, SurgeDetectorService surgeDetectorService,
-            WebSocketService webSocketService, SseService sseService) {
+            WebSocketService webSocketService, SseService sseService, 
+            RedirectionPersistenceService redirectionPersistenceService) {
         this.hospitalService = hospitalService;
         this.surgeDetectorService = surgeDetectorService;
         this.webSocketService = webSocketService;
         this.sseService = sseService;
+        this.redirectionPersistenceService = redirectionPersistenceService;
     }
 
     /**
@@ -264,6 +303,111 @@ public class OrchestratorService {
         }
 
         return bestTargetId;
+    }
+
+    /**
+     * Inner class to hold redirection evaluation results
+     */
+    private static class RedirectionEvaluation {
+        String targetHospitalId;
+        double benefitScore;
+        double distance;
+        
+        RedirectionEvaluation(String targetHospitalId, double benefitScore, double distance) {
+            this.targetHospitalId = targetHospitalId;
+            this.benefitScore = benefitScore;
+            this.distance = distance;
+        }
+    }
+    
+    /**
+     * Evaluate redirection with full scoring details
+     */
+    private RedirectionEvaluation evaluateRedirectionWithScore(String patientId, String sourceHospitalId) {
+        Hospital source = hospitalService.getHospital(sourceHospitalId);
+        Patient patient = hospitalService.findPatient(patientId);
+
+        if (source == null || patient == null)
+            return null;
+
+        Department requiredDept = hospitalService.getDepartmentForSeverity(patient.getBaseSeverity());
+        double maxScore = MIN_REDIRECT_BENEFIT - 1;
+        String bestTargetId = sourceHospitalId;
+        double bestDistance = 0;
+        double waitSource = source.getDepartmentQueueSize(requiredDept);
+
+        for (Hospital candidate : getAllHospitals()) {
+            if (candidate.getId().equals(sourceHospitalId))
+                continue;
+
+            double waitCandidate = candidate.getDepartmentQueueSize(requiredDept);
+            double dist = Math.hypot(source.getX() - candidate.getX(), source.getY() - candidate.getY());
+            double distancePenalty = dist * DISTANCE_PENALTY_FACTOR;
+            double benefit = waitSource - (waitCandidate + distancePenalty);
+
+            if (benefit > MIN_REDIRECT_BENEFIT && benefit > maxScore) {
+                maxScore = benefit;
+                bestTargetId = candidate.getId();
+                bestDistance = dist;
+            }
+        }
+
+        return new RedirectionEvaluation(bestTargetId, maxScore, bestDistance);
+    }
+    
+    /**
+     * Determine decision type based on benefit score and queue conditions
+     */
+    private String determineDecisionType(double benefitScore, int sourceQueue, int targetQueue) {
+        // Safe: High benefit, target queue significantly smaller
+        if (benefitScore > 5.0 && targetQueue < sourceQueue / 2) {
+            return "safe";
+        }
+        // Conditional: Moderate benefit or similar queue sizes
+        else if (benefitScore > 2.0 || Math.abs(sourceQueue - targetQueue) < 3) {
+            return "conditional";
+        }
+        // Standard: All other cases
+        return "standard";
+    }
+    
+    /**
+     * Calculate dynamic confidence score based on multiple factors
+     */
+    private int calculateDynamicConfidenceScore(RedirectionEvaluation eval, Hospital source, Hospital target, Patient patient) {
+        if (target == null) return 50;
+        
+        int baseScore = 50;
+        
+        // Factor 1: Benefit score (max +30 points)
+        double benefitContribution = Math.min(30, eval.benefitScore * 3);
+        baseScore += benefitContribution;
+        
+        // Factor 2: Target capacity utilization (max +20 points)
+        Department dept = hospitalService.getDepartmentForSeverity(patient.getBaseSeverity());
+        int targetQueue = target.getDepartmentQueueSize(dept);
+        double capacityUtilization = (double) targetQueue / target.getMaxCapacity();
+        if (capacityUtilization < 0.3) {
+            baseScore += 20;
+        } else if (capacityUtilization < 0.5) {
+            baseScore += 15;
+        } else if (capacityUtilization < 0.7) {
+            baseScore += 10;
+        }
+        
+        // Factor 3: Distance penalty (max -15 points)
+        double distancePenalty = Math.min(15, eval.distance / 10);
+        baseScore -= distancePenalty;
+        
+        // Factor 4: Patient severity bonus (high severity gets higher confidence)
+        if (patient.getBaseSeverity() >= 8) {
+            baseScore += 10;
+        } else if (patient.getBaseSeverity() >= 6) {
+            baseScore += 5;
+        }
+        
+        // Ensure score is within 0-100
+        return Math.max(0, Math.min(100, baseScore));
     }
 
     public int getHospitalCount() {

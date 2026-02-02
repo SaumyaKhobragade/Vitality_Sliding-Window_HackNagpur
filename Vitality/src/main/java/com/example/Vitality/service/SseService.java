@@ -87,11 +87,13 @@ public class SseService {
      * Broadcast event to all subscribed clients
      */
     public void broadcastEvent(Object event) {
+        log.debug("Broadcasting event to {} clients", eventsEmitters.size());
         broadcast(eventsEmitters, "event", event);
     }
 
     private void broadcast(List<SseEmitter> emitters, String eventName, Object data) {
         if (emitters.isEmpty()) {
+            log.debug("No SSE clients connected for event: {}", eventName);
             return;
         }
 
@@ -103,6 +105,7 @@ public class SseService {
             return;
         }
 
+        log.debug("Broadcasting {} to {} SSE clients", eventName, emitters.size());
         List<SseEmitter> deadEmitters = new java.util.ArrayList<>();
 
         for (SseEmitter emitter : emitters) {
@@ -111,10 +114,14 @@ public class SseService {
                         .name(eventName)
                         .data(jsonData));
             } catch (IOException e) {
+                log.debug("SSE client disconnected: {}", e.getMessage());
                 deadEmitters.add(emitter);
             }
         }
 
         emitters.removeAll(deadEmitters);
+        if (!deadEmitters.isEmpty()) {
+            log.debug("Removed {} dead SSE connections", deadEmitters.size());
+        }
     }
 }

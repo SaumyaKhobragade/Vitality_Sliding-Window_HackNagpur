@@ -90,9 +90,11 @@ function mapPatient(row: any): Patient {
 function mapRedirectionDecision(row: any): RedirectionDecision {
   return {
     id: row.id,
-    patientId: row.patient_id,
-    fromHospital: row.from_hospital_id,
-    toHospital: row.to_hospital_id,
+    patientId: row.patient?.display_id || row.patient_id,
+    fromHospital: row.from_hospital?.id || row.from_hospital_id,
+    fromHospitalName: row.from_hospital?.name,
+    toHospital: row.to_hospital?.id || row.to_hospital_id,
+    toHospitalName: row.to_hospital?.name,
     decisionType: row.decision_type as "safe" | "conditional" | "standard",
     reason: row.reason,
     time: row.created_at,
@@ -192,7 +194,14 @@ export async function getRedirectionDecisions(): Promise<
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("redirection_decisions")
-    .select("*")
+    .select(
+      `
+      *,
+      patient:patients!patient_id(display_id),
+      from_hospital:hospitals!from_hospital_id(id, name),
+      to_hospital:hospitals!to_hospital_id(id, name)
+    `,
+    )
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -388,16 +397,16 @@ export async function updateDistressEventStatus(
   resolvedBy?: string,
 ): Promise<DistressEvent | null> {
   const supabase = await createClient();
-  
+
   const updateData: any = {
     status: status.toLowerCase(),
     resolution_notes: resolutionNotes,
   };
-  
+
   if (resolvedBy) {
     updateData.resolved_by = resolvedBy;
   }
-  
+
   const { data, error } = await supabase
     .from("distress_events")
     .update(updateData)

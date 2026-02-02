@@ -1,4 +1,4 @@
-import { ShieldUser } from "lucide-react";
+import { ArrowRight, ArrowRightCircle, Handshake, ShieldUser } from "lucide-react";
 import Link from "next/link";
 
 export default function LandingGovernance() {
@@ -9,9 +9,9 @@ export default function LandingGovernance() {
                     <div className="absolute top-0 right-0 -mt-10 -mr-10 h-64 w-64 rounded-full bg-primary/20 blur-3xl"></div>
                     <div className="relative z-10 flex flex-col md:flex-row gap-10 items-start md:items-center">
                         <div className="flex-1">
-                            <div className="flex items-center gap-3 text-primary mb-4">
-                                <ShieldUser />
-                                <span className="text-sm font-bold uppercase tracking-widest  text-sky-500">
+                            <div className="flex items-center gap-3  mb-4">
+                                <span className="flex items-center gap-2 text-sm font-bold uppercase tracking-widest  text-sky-500">
+                                    <Handshake size={22}/>
                                     Human-in-the-loop Governance
                                 </span>
                             </div>
@@ -26,13 +26,11 @@ export default function LandingGovernance() {
                                 decisions.
                             </p>
                             <Link
-                                className="inline-flex items-center gap-2 text-white font-semibold hover:text-primary transition-colors"
+                                className="inline-flex items-center gap-2 text-white font-semibold  bg-[#0ea5e9] rounded-2xl px-5 py-3 shadow-lg hover:shadow-xl hover:text-white hover:scale-105 transition-all duration-200"
                                 href="#"
                             >
                                 Read our Ethics Whitepaper
-                                <span className="material-symbols-outlined text-sm">
-                                    arrow_forward
-                                </span>
+                                <ArrowRight size={22} />
                             </Link>
                         </div>
                         <div className="w-full md:w-1/3">

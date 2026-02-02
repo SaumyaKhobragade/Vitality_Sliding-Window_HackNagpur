@@ -527,13 +527,17 @@ export const SimulationProvider = ({ children }: { children: ReactNode }) => {
         const sourceName = event.sourceHospitalName || event.sourceHospitalId;
         const targetName = event.targetHospitalName || event.targetHospitalId;
         console.info(
-          ` REDIRECT: ${getShortPatientId(event.patientId)} moved ${sourceName} -> ${targetName}`,
+          `🔄 REDIRECT: ${getShortPatientId(event.patientId)} moved ${sourceName} -> ${targetName}`,
         );
+        console.log("Full redirection event:", event);
         addLog(
           "SUCCESS",
           ` Redirected: Patient ${getShortPatientId(event.patientId)} from ${sourceName} → ${targetName}`,
         );
-        setRedirectionEvents((prev) => [event, ...prev].slice(0, 100)); // Keep last 100
+        setRedirectionEvents((prev) => {
+          console.log("Adding to redirectionEvents, current count:", prev.length);
+          return [event, ...prev].slice(0, 100);
+        }); // Keep last 100
         setTotalRedirections((prev) => prev + 1); // Track total count
       } else if (event.type === "TREATMENT_STARTED") {
         setActiveTreatments((prev) => {

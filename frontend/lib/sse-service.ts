@@ -86,6 +86,7 @@ export class SseService {
     eventSource.addEventListener(eventName, (event: MessageEvent) => {
       try {
         const data = JSON.parse(event.data);
+        console.log(`[SSE] Received ${eventName} event:`, data);
         this.errorLogged.delete(topic); // Clear error flag on successful message
         callback(data);
       } catch (e) {
@@ -105,7 +106,9 @@ export class SseService {
     eventSource.onerror = () => {
       // Only log error once per topic to avoid console spam
       if (!this.errorLogged.has(topic)) {
-        console.warn(`SSE: Backend not available for ${topic} - real-time updates disabled`);
+        console.warn(
+          `SSE: Backend not available for ${topic} - real-time updates disabled`,
+        );
         this.errorLogged.add(topic);
       }
       // EventSource will automatically reconnect

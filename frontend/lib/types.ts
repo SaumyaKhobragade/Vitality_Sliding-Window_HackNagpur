@@ -84,7 +84,9 @@ export interface RedirectionDecision {
   id: string;
   patientId: string;
   fromHospital: string;
+  fromHospitalName?: string;
   toHospital: string;
+  toHospitalName?: string;
   decisionType: "safe" | "conditional" | "standard";
   reason: string;
   time: string;

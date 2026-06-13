@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vitality Control Panel — City-Scale Triage Simulation</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="dark-theme">
+    <div class="app-container">
+        <!-- HEADER -->
+        <header class="app-header">
+            <div class="logo-container">
+                <div class="pulse-icon"></div>
+                <div class="brand">
+                    <h1>VITALITY</h1>
+                    <span class="subtitle">City-Scale Hospital Triage & Coordinated Redirection</span>
+                </div>
+            </div>
+            <div class="server-status">
+                <span class="status-label">Backend Connection:</span>
+                <span id="connection-badge" class="badge disconnected">Checking...</span>
+                <span id="server-url" class="server-url-text">http://localhost:9090</span>
+            </div>
+        </header>
+
+        <!-- STATS BAR -->
+        <section class="stats-overview">
+            <div class="stat-card">
+                <div class="stat-icon patient-icon">👤</div>
+                <div class="stat-content">
+                    <span class="stat-label">Total Patients</span>
+                    <h2 id="stat-total-patients" class="stat-val">0</h2>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon waiting-icon">⏳</div>
+                <div class="stat-content">
+                    <span class="stat-label">Patients Waiting</span>
+                    <h2 id="stat-waiting-patients" class="stat-val">0</h2>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon treated-icon">✅</div>
+                <div class="stat-content">
+                    <span class="stat-label">Patients Treated</span>
+                    <h2 id="stat-treated-patients" class="stat-val">0</h2>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon doctors-icon">🩺</div>
+                <div class="stat-content">
+                    <span class="stat-label">Active Doctors</span>
+                    <h2 id="stat-active-doctors" class="stat-val">0</h2>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon redirects-icon">🔄</div>
+                <div class="stat-content">
+                    <span class="stat-label">Redirections</span>
+                    <h2 id="stat-redirections" class="stat-val">0</h2>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon fairness-icon">⚖️</div>
+                <div class="stat-content">
+                    <span class="stat-label">Fairness Index</span>
+                    <h2 id="stat-fairness" class="stat-val">0.00</h2>
+                </div>
+            </div>
+        </section>
+
+        <!-- MAIN LAYOUT -->
+        <main class="main-content">
+            <!-- LEFT COLUMN: CONTROLS & FORMS -->
+            <aside class="sidebar-controls">
+                
+                <!-- SIMULATION SETUP -->
+                <div class="card glassmorphic">
+                    <h3>🛠️ Simulation Controller</h3>
+                    <div class="card-body">
+                        <div class="control-group">
+                            <label for="init-hospitals">Hospitals to Initialize:</label>
+                            <div class="input-row">
+                                <input type="number" id="init-hospitals" value="3" min="1" max="15">
+                                <button id="btn-init" class="btn btn-primary">Initialize City</button>
+                            </div>
+                            <small class="help-text">Queries active DB hospitals or generates fallbacks locally.</small>
+                        </div>
+                        
+                        <div class="divider"></div>
+                        
+                        <div class="control-group">
+                            <label for="surge-count">Surge Generation:</label>
+                            <div class="input-row">
+                                <input type="number" id="surge-count" value="20" min="1" max="500">
+                                <button id="btn-surge" class="btn btn-warning">Trigger Surge</button>
+                            </div>
+                            <small class="help-text">Injects random severity patients across hospitals.</small>
+                        </div>
+
+                        <div class="control-group">
+                            <label for="flood-count">Flood Target Hospital:</label>
+                            <div class="input-row">
+                                <input type="number" id="flood-count" value="50" min="1" max="1000">
+                                <button id="btn-flood" class="btn btn-danger">Flood Queue</button>
+                            </div>
+                            <small class="help-text">Sends high volume to selected hospitals.</small>
+                        </div>
+
+                        <div class="divider"></div>
+
+                        <div class="control-group">
+                            <label>Staffing & capacity controls:</label>
+                            <div class="btn-grid">
+                                <button id="btn-shortage-60" class="btn btn-secondary">Shortage (60% Doctors)</button>
+                                <button id="btn-shortage-30" class="btn btn-danger">Shortage (30% Doctors)</button>
+                            </div>
+                            <small class="help-text">Triggers general staff shortages simulating fatigue/exodus.</small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ADMIT PATIENT -->
+                <div class="card glassmorphic">
+                    <h3>➕ Admit Patient</h3>
+                    <div class="card-body">
+                        <form id="form-admit">
+                            <div class="form-field">
+                                <label for="admit-hospital">Select Hospital:</label>
+                                <select id="admit-hospital" required>
+                                    <option value="">-- Select Hospital --</option>
+                                </select>
+                            </div>
+                            <div class="form-field">
+                                <label for="admit-severity">Base Severity (1-10):</label>
+                                <div class="slider-container">
+                                    <input type="range" id="admit-severity" min="1" max="10" value="5">
+                                    <span id="severity-val" class="slider-bubble">5</span>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-success btn-block">Admit Patient</button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- BEHAVIORAL DISTRESS SIMULATOR -->
+                <div class="card glassmorphic">
+                    <h3>🚨 Distress Signal Simulator</h3>
+                    <div class="card-body">
+                        <form id="form-distress">
+                            <div class="form-field">
+                                <label for="distress-patient-id">Patient ID:</label>
+                                <input type="text" id="distress-patient-id" placeholder="e.g. P123" required>
+                            </div>
+                            <div class="form-field">
+                                <label for="distress-level">Distress Severity Score:</label>
+                                <div class="slider-container">
+                                    <input type="range" id="distress-level" min="10" max="100" value="50">
+                                    <span id="distress-val" class="slider-bubble">50</span>
+                                </div>
+                            </div>
+                            <div class="btn-grid">
+                                <button type="button" id="btn-trigger-distress" class="btn btn-warning">Trigger Signal</button>
+                                <button type="button" id="btn-confirm-distress" class="btn btn-success">Confirm HITL</button>
+                                <button type="button" id="btn-dismiss-distress" class="btn btn-secondary">Dismiss HITL</button>
+                            </div>
+                            <small class="help-text">HITL: Human-In-The-Loop validation required for permanent priority boost.</small>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- REDIRECTION ADVISORY -->
+                <div class="card glassmorphic">
+                    <h3>🔄 Redirection Evaluator</h3>
+                    <div class="card-body">
+                        <form id="form-redirect">
+                            <div class="form-field">
+                                <label for="redirect-patient-id">Patient ID:</label>
+                                <input type="text" id="redirect-patient-id" required>
+                            </div>
+                            <div class="form-field">
+                                <label for="redirect-hospital">Current Hospital:</label>
+                                <select id="redirect-hospital" required>
+                                    <option value="">-- Select Hospital --</option>
+                                </select>
+                            </div>
+                            <button type="submit" class="btn btn-primary btn-block">Evaluate Redirection</button>
+                        </form>
+                        <div id="redirect-result" class="redirect-result-box hidden">
+                            <div class="recommendation-header">
+                                <span class="rec-label">Decision:</span>
+                                <span id="rec-decision" class="badge">N/A</span>
+                            </div>
+                            <p id="rec-details">Evaluation result will display here.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- POLICY VALUES -->
+                <div class="card glassmorphic">
+                    <h3>⚙️ Policy Engine Configuration</h3>
+                    <div class="card-body" id="policy-config-container">
+                        <!-- Loaded dynamically -->
+                        <p class="loading-placeholder">Loading policies...</p>
+                    </div>
+                </div>
+
+            </aside>
+
+            <!-- RIGHT COLUMN: HOSPITALS MAP & LIVE EVENTS -->
+            <section class="display-area">
+                
+                <!-- HOSPITALS GRID -->
+                <div class="card glassmorphic hospitals-card">
+                    <div class="card-header-flex">
+                        <h3>🏥 City Hospitals Overview</h3>
+                        <span id="hospital-count-badge" class="badge badge-info">0 Active</span>
+                    </div>
+                    <div class="card-body">
+                        <div id="hospitals-grid" class="hospitals-grid">
+                            <div class="empty-state">
+                                <p>No hospitals initialized. Click "Initialize City" to set up hospitals.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- EVENT LOGS AND SSE STREAM -->
+                <div class="card glassmorphic logs-card">
+                    <div class="card-header-flex">
+                        <h3>📋 Real-Time Activity Streams (SSE)</h3>
+                        <div class="log-actions">
+                            <button id="btn-clear-logs" class="btn-text">Clear Console</button>
+                        </div>
+                    </div>
+                    <div class="card-body log-container">
+                        <div id="log-console" class="log-console">
+                            <div class="log-entry system">🔌 Connect to the Java backend and trigger simulation events to view stream logs...</div>
+                        </div>
+                    </div>
+                </div>
+
+            </section>
+        </main>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>

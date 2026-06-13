@@ -2,7 +2,7 @@
 $BaseUrl = "http://localhost:9090/api/simulation"
 
 Write-Host "1. Initializing City..." -ForegroundColor Cyan
-Invoke-RestMethod -Method Post -Uri "$BaseUrl/init"
+Invoke-RestMethod -Method Post -Uri "$BaseUrl/init" -ContentType "application/json" -Body '{"count": "3"}' | Out-Null
 
 Write-Host "2. Overloading Hospital H1 with 20 Patients..." -ForegroundColor Yellow
 $lastPatientId = ""
@@ -10,10 +10,7 @@ $lastPatientId = ""
 for ($i = 1; $i -le 20; $i++) {
     $severity = Get-Random -Minimum 4 -Maximum 8 # General Ward Severity
     $response = Invoke-RestMethod -Method Post -Uri "$BaseUrl/patient" -ContentType "application/json" -Body "{""hospitalId"": ""H1"", ""severity"": $severity}"
-    # Extract Patient ID (Naive parsing for hackathon speed)
-    if ($response -match "Patient (.*?) admitted") {
-        $lastPatientId = $matches[1]
-    }
+    $lastPatientId = $response.patientId
     Write-Host "." -NoNewline -ForegroundColor Gray
 }
 Write-Host ""

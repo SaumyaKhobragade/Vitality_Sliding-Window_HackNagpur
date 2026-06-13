@@ -1,6 +1,6 @@
 "use client";
 
-import { Zap, Navigation, FileText, UserX } from "lucide-react";
+import { Zap, Navigation, FileText, UserX, Heart } from "lucide-react";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -13,7 +13,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 
 export interface PatientContextAction {
-    type: "fast-track" | "redirect" | "audit-log" | "discharge";
+    type: "fast-track" | "redirect" | "audit-log" | "discharge" | "medical-summary";
     label: string;
     icon: React.ReactNode;
     variant?: "default" | "destructive";

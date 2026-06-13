@@ -112,29 +112,29 @@ public class SimulationController {
     private String initializeWithFallback(Map<String, String> body) {
         int hospitalCount = body.containsKey("count") ? Integer.parseInt(body.get("count")) : 10;
 
-        System.out.println(">>> Initializing city with " + hospitalCount + " UUID-based hospitals (fallback)...");
+        System.out.println(">>> Initializing city with " + hospitalCount + " sequential hospitals (fallback)...");
 
         for (int i = 0; i < hospitalCount; i++) {
-            String uuid = java.util.UUID.randomUUID().toString();
+            String id = "H" + (i + 1);
             String name = "Hospital #" + (i + 1);
-            Hospital h = hospitalService.createHospital(uuid, name, random.nextInt(100) + 50);
-            System.out.println("✅ Initialized Hospital: " + h.getName() + " (ID: " + uuid.substring(0, 8)
-                    + "...) Capacity: " + h.getCapacity());
+            Hospital h = hospitalService.createHospital(id, name, random.nextInt(100) + 50);
+            System.out.println("✅ Initialized Hospital: " + h.getName() + " (ID: " + id
+                    + ") Capacity: " + h.getCapacity());
         }
 
         Map<String, Object> event = new HashMap<>();
         event.put("type", "CITY_INITIALIZED");
         event.put("hospitalCount", hospitalCount);
         event.put("timestamp", System.currentTimeMillis());
-        event.put("message", "City initialized with " + hospitalCount + " UUID-based hospitals (fallback)");
+        event.put("message", "City initialized with " + hospitalCount + " sequential hospitals (fallback)");
         webSocketService.broadcastEvent(event);
         sseService.broadcastEvent(event);
 
-        return "City Initialized with " + hospitalCount + " UUID-based hospitals (fallback).";
+        return "City Initialized with " + hospitalCount + " sequential hospitals (fallback).";
     }
 
     @PostMapping("/patient")
-    public void injectPatient(@RequestBody Map<String, Object> body) {
+    public Map<String, Object> injectPatient(@RequestBody Map<String, Object> body) {
         String hospitalId = (String) body.get("hospitalId");
         int severity = (int) body.get("severity");
 
@@ -164,8 +164,10 @@ public class SimulationController {
             sseService.broadcastHospital(updatedHospital);
         }
 
-        // return "Patient " + p.getId() + " admitted to " + hospitalId + " with
-        // severity " + severity;
+        Map<String, Object> response = new HashMap<>();
+        response.put("patientId", p.getId());
+        response.put("status", "success");
+        return response;
     }
 
     @GetMapping("/stats")
@@ -260,10 +262,10 @@ public class SimulationController {
                     allHospitals = hospitalService.getAllHospitals();
                 }
             } catch (Exception e) {
-                // Fallback: create 10 random hospitals if Supabase fails
+                // Fallback: create 10 sequential hospitals if Supabase fails
                 for (int i = 0; i < 10; i++) {
-                    String uuid = java.util.UUID.randomUUID().toString();
-                    hospitalService.createHospital(uuid, "Hospital #" + (i + 1), random.nextInt(100) + 50);
+                    String id = "H" + (i + 1);
+                    hospitalService.createHospital(id, "Hospital #" + (i + 1), random.nextInt(100) + 50);
                 }
                 allHospitals = hospitalService.getAllHospitals();
             }

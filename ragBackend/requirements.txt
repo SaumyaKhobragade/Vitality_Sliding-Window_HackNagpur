@@ -1,0 +1,15 @@
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+python-multipart>=0.0.6
+pydantic>=2.5.0
+langchain>=0.1.0
+langchain-community>=0.0.10
+langchain-google-genai>=1.0.0
+langgraph>=0.0.15
+chromadb>=0.4.22
+pypdf>=4.0.0
+python-docx>=1.1.0
+sentence-transformers>=2.3.0
+huggingface-hub
+python-dotenv
+

@@ -32,6 +32,7 @@ import { SuccessToast } from "@/app/Components/dashboard/SuccessToast";
 import * as ApiClient from "@/lib/api-client";
 import { useRealtime } from "@/app/Components/Context/RealtimeContext";
 import { useSimulation } from "@/app/Components/Context/SimulationContext";
+import { PatientSummarySheet } from "@/app/Components/dashboard/PatientSummarySheet";
 
 // Helper functions
 const getSeverityColor = (severity: number) => {
@@ -96,6 +97,10 @@ const QueueDetailsContent = () => {
         description: "",
     });
     const [isLoading, setIsLoading] = useState(false);
+
+    const [activeSummaryPatientId, setActiveSummaryPatientId] = useState<string | null>(null);
+    const [isSummaryOpen, setIsSummaryOpen] = useState(false);
+    const [activeSummaryPatientName, setActiveSummaryPatientName] = useState("");
 
     const fetchData = useCallback(async () => {
         try {
@@ -258,43 +263,57 @@ const QueueDetailsContent = () => {
         },
         {
             id: "actions",
-            cell: ({ row }) => (
-                <PatientContextMenu
-                    patientName={`Patient ${row.getValue("id")}`}
-                    patientInitials="PT"
-                    patientRole="Emergency"
-                    actions={[
-                        {
-                            type: "fast-track",
-                            label: "Fast-track",
-                            icon: <Zap className="h-4 w-4" />,
-                            onAction: () =>
-                                handlePatientAction("fast-track", row.getValue("id")),
-                        },
-                        {
-                            type: "redirect",
-                            label: "Redirect",
-                            icon: <Navigation className="h-4 w-4" />,
-                            onAction: () =>
-                                handlePatientAction("redirect", row.getValue("id")),
-                        },
-                        {
-                            type: "audit-log",
-                            label: "View Audit Log",
-                            icon: <FileText className="h-4 w-4" />,
-                            onAction: () => handlePatientAction("audit", row.getValue("id")),
-                        },
-                        {
-                            type: "discharge",
-                            label: "Discharge",
-                            icon: <UserX className="h-4 w-4" />,
-                            variant: "destructive",
-                            onAction: () =>
-                                handlePatientAction("discharge", row.getValue("id")),
-                        },
-                    ]}
-                />
-            ),
+            cell: ({ row }) => {
+                const patientId = row.original.id;
+                const shortId = getShortPatientId(patientId);
+                return (
+                    <PatientContextMenu
+                        patientName={`Patient ${shortId}`}
+                        patientInitials="PT"
+                        patientRole="Emergency"
+                        actions={[
+                            {
+                                type: "medical-summary",
+                                label: "Medical History RAG",
+                                icon: <Heart className="h-4 w-4 text-primary" />,
+                                onAction: () => {
+                                    setActiveSummaryPatientId(patientId);
+                                    setActiveSummaryPatientName(`Patient ${shortId}`);
+                                    setIsSummaryOpen(true);
+                                },
+                            },
+                            {
+                                type: "fast-track",
+                                label: "Fast-track",
+                                icon: <Zap className="h-4 w-4" />,
+                                onAction: () =>
+                                    handlePatientAction("fast-track", patientId),
+                            },
+                            {
+                                type: "redirect",
+                                label: "Redirect",
+                                icon: <Navigation className="h-4 w-4" />,
+                                onAction: () =>
+                                    handlePatientAction("redirect", patientId),
+                            },
+                            {
+                                type: "audit-log",
+                                label: "View Audit Log",
+                                icon: <FileText className="h-4 w-4" />,
+                                onAction: () => handlePatientAction("audit", patientId),
+                            },
+                            {
+                                type: "discharge",
+                                label: "Discharge",
+                                icon: <UserX className="h-4 w-4" />,
+                                variant: "destructive",
+                                onAction: () =>
+                                    handlePatientAction("discharge", patientId),
+                            },
+                        ]}
+                    />
+                );
+            },
         },
     ];
 
@@ -497,6 +516,13 @@ const QueueDetailsContent = () => {
                     confirmDialog.action === "discharge" ? "destructive" : "warning"
                 }
                 loading={isLoading}
+            />
+
+            <PatientSummarySheet
+                isOpen={isSummaryOpen}
+                onClose={() => setIsSummaryOpen(false)}
+                patientId={activeSummaryPatientId || ""}
+                patientName={activeSummaryPatientName}
             />
 
             {/* Success Toast */}

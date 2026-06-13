@@ -1,5 +1,6 @@
 package com.example.Vitality.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Data;
 import lombok.Builder;
 import java.util.Map;
@@ -26,10 +27,12 @@ public class Hospital {
     public Map<Department, PriorityBlockingQueue<Patient>> waitingRooms = new ConcurrentHashMap<>();
 
     @Builder.Default
+    @JsonIgnore
     private Map<Department, ThreadPoolExecutor> departmentalStaff = new ConcurrentHashMap<>();
 
     // Controls for graceful shutdown of specific doctor threads
     @Builder.Default
+    @JsonIgnore
     private Map<Department, Deque<AtomicBoolean>> staffControl = new ConcurrentHashMap<>();
 
     // Baseline staff counts for surge scaling (stores original counts)
@@ -39,6 +42,26 @@ public class Hospital {
     // Metrics
     @Builder.Default
     private AtomicInteger activeTreatments = new AtomicInteger(0);
+
+    public Map<String, Integer> getStaffCounts() {
+        Map<String, Integer> counts = new java.util.HashMap<>();
+        if (departmentalStaff != null) {
+            departmentalStaff.forEach((dept, executor) -> {
+                counts.put(dept.name(), executor.getCorePoolSize());
+            });
+        }
+        return counts;
+    }
+
+    public Map<String, Integer> getActiveStaffCounts() {
+        Map<String, Integer> counts = new java.util.HashMap<>();
+        if (departmentalStaff != null) {
+            departmentalStaff.forEach((dept, executor) -> {
+                counts.put(dept.name(), executor.getActiveCount());
+            });
+        }
+        return counts;
+    }
 
     public int getTotalQueueSize() {
         return waitingRooms.values().stream().mapToInt(Queue::size).sum();

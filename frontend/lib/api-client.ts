@@ -61,11 +61,16 @@ export const initCity = async (count: number): Promise<string> => {
   });
 };
 
+export interface InjectPatientResponse {
+  patientId: string;
+  status: string;
+}
+
 export const injectPatient = async (
   hospitalId: string,
   severity: number,
-): Promise<string> => {
-  return fetchSimulation<string>("/patient", {
+): Promise<InjectPatientResponse> => {
+  return fetchSimulation<InjectPatientResponse>("/patient", {
     method: "POST",
     body: JSON.stringify({ hospitalId, severity }),
   });

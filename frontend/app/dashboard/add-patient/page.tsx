@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
     User,
     Phone,
@@ -17,7 +17,12 @@ import {
     Stethoscope,
     Eye,
     EyeOff,
+    Hospital as HospitalIcon,
+    AlertCircle,
 } from "lucide-react";
+import * as ApiClient from "@/lib/api-client";
+import { Hospital } from "@/lib/types";
+import { toast } from "sonner";
 
 // Types for injury analysis result
 interface VisualFeatures {
@@ -52,6 +57,7 @@ interface PatientFormData {
 }
 
 const IMAGE_VIDEO_BACKEND_URL = process.env.NEXT_PUBLIC_IMAGE_VIDEO_BACKEND_URL || "http://127.0.0.1:8001";
+const RAG_BACKEND_URL = process.env.NEXT_PUBLIC_RAG_BACKEND_URL || "http://localhost:8002";
 
 const AddPatientPage = () => {
     const [formData, setFormData] = useState<PatientFormData>({
@@ -66,6 +72,12 @@ const AddPatientPage = () => {
         currentMedications: "",
     });
 
+    const [hospitals, setHospitals] = useState<Hospital[]>([]);
+    const [selectedHospitalId, setSelectedHospitalId] = useState<string>("");
+    const [severity, setSeverity] = useState<number>(5);
+    const [uploadedMedicalFiles, setUploadedMedicalFiles] = useState<File[]>([]);
+    const [isFetchingHospitals, setIsFetchingHospitals] = useState(true);
+
     const [injuryImage, setInjuryImage] = useState<File | null>(null);
     const [imagePreview, setImagePreview] = useState<string | null>(null);
     const [analysisResult, setAnalysisResult] = useState<InjuryAnalysisResult | null>(null);
@@ -73,11 +85,39 @@ const AddPatientPage = () => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [submitSuccess, setSubmitSuccess] = useState(false);
     const [isImageBlurred, setIsImageBlurred] = useState(true); // Blur by default for sensitive content
+    const [ingestStatus, setIngestStatus] = useState<string>("");
+
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const medicalDocsRef = useRef<HTMLInputElement>(null);
+
+    // Fetch active hospitals on mount
+    useEffect(() => {
+        const loadHospitals = async () => {
+            try {
+                const data = await ApiClient.getHospitals();
+                setHospitals(data);
+                if (data.length > 0) {
+                    setSelectedHospitalId(data[0].id);
+                }
+            } catch (err) {
+                console.error("Failed to load hospitals:", err);
+                toast.error("Failed to fetch hospitals list. Please ensure the Java simulation is running.");
+            } finally {
+                setIsFetchingHospitals(false);
+            }
+        };
+        loadHospitals();
+    }, []);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
         setFormData((prev) => ({ ...prev, [name]: value }));
+    };
+
+    const handleMedicalDocsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = e.target.files;
+        if (!files) return;
+        setUploadedMedicalFiles(Array.from(files));
     };
 
     const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -109,12 +149,20 @@ const AddPatientPage = () => {
 
             const result: InjuryAnalysisResult = await response.json();
             setAnalysisResult(result);
+            
+            // Map 0-100 severity score to 1-10 range
+            const mappedSeverity = Math.max(1, Math.min(10, Math.round(result.severityScore / 10)));
+            setSeverity(mappedSeverity);
+            toast.success(`AI assessed severity: ${mappedSeverity}/10`);
         } catch (error) {
-            console.error("Image analysis failed:", error);
-            // Mock result for demo if backend is unavailable
+            console.error("Image analysis failed, applying fallback:", error);
+            const mockScore = Math.random() * 100;
+            const mappedSeverity = Math.max(1, Math.min(10, Math.round(mockScore / 10)));
+            setSeverity(mappedSeverity);
+
             setAnalysisResult({
                 analysisId: `mock-${Date.now()}`,
-                severityScore: Math.random() * 100,
+                severityScore: mockScore,
                 severityLevel: ["LOW", "MEDIUM", "HIGH"][Math.floor(Math.random() * 3)] as "LOW" | "MEDIUM" | "HIGH",
                 routingRecommendation: "Doctor evaluation recommended",
                 features: {
@@ -144,19 +192,77 @@ const AddPatientPage = () => {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (!selectedHospitalId) {
+            toast.error("Please select a hospital to admit the patient.");
+            return;
+        }
+
         setIsSubmitting(true);
+        setIngestStatus("Registering patient in triage system...");
 
         try {
-            // Simulate API call
-            await new Promise((resolve) => setTimeout(resolve, 1500));
+            // 1. Admit patient in Spring Boot Backend & Supabase
+            const regResult = await ApiClient.injectPatient(selectedHospitalId, severity);
+            const patientId = regResult.patientId;
 
-            console.log("Patient data:", formData);
-            console.log("Injury analysis:", analysisResult);
+            console.log("Successfully admitted patient. ID:", patientId);
+
+            // 2. Prepare data for Python RAG Backend
+            setIngestStatus("Uploading and indexing medical history...");
+            const ragFormData = new FormData();
+            
+            // Structured text format of patient profile & direct history
+            const clinicalProfileText = `
+Patient Demographics:
+- Name: ${formData.firstName} ${formData.lastName}
+- Date of Birth: ${formData.dateOfBirth}
+- Contact Phone: ${formData.phone || "Not provided"}
+- Home Address: ${formData.address || "Not provided"}
+
+Chief Complaint:
+${formData.chiefComplaint}
+
+Medical History Notes:
+${formData.medicalHistory || "No past conditions documented."}
+
+Allergies:
+${formData.allergies || "No allergies documented."}
+
+Current Medications:
+${formData.currentMedications || "No active medications documented."}
+            `.trim();
+
+            ragFormData.append("text", clinicalProfileText);
+
+            // Append each uploaded medical document
+            uploadedMedicalFiles.forEach((file) => {
+                ragFormData.append("files", file);
+            });
+
+            // 3. Post history to RAG Backend
+            try {
+                const ragResponse = await fetch(`${RAG_BACKEND_URL}/api/patients/${patientId}/history`, {
+                    method: "POST",
+                    body: ragFormData,
+                });
+
+                if (!ragResponse.ok) {
+                    throw new Error("RAG ingestion failed");
+                }
+                const ragData = await ragResponse.json();
+                console.log("RAG ingestion success:", ragData);
+                toast.success("Medical records chunked and indexed successfully!");
+            } catch (ragErr) {
+                console.error("RAG indexing failed:", ragErr);
+                toast.warning("Patient registered successfully, but RAG indexing of medical documents failed. Triage queue is active.");
+            }
 
             setSubmitSuccess(true);
+            toast.success(`Admitted Patient ${formData.firstName} ${formData.lastName} successfully!`);
+            
+            // Reset form fields
             setTimeout(() => {
                 setSubmitSuccess(false);
-                // Reset form
                 setFormData({
                     firstName: "",
                     lastName: "",
@@ -168,12 +274,17 @@ const AddPatientPage = () => {
                     allergies: "",
                     currentMedications: "",
                 });
+                setUploadedMedicalFiles([]);
                 clearImage();
-            }, 3000);
+                setSeverity(5);
+            }, 2000);
+
         } catch (error) {
-            console.error("Submit failed:", error);
+            console.error("Failed to admit patient:", error);
+            toast.error("Registration failed. Please make sure the Java server is running.");
         } finally {
             setIsSubmitting(false);
+            setIngestStatus("");
         }
     };
 
@@ -213,7 +324,7 @@ const AddPatientPage = () => {
                         Add New Patient
                     </h1>
                     <p className="text-gray-500 dark:text-gray-400 mt-1 text-sm">
-                        Register a new patient and optionally scan injury images for severity assessment
+                        Register a new patient, upload history documents for RAG, and optionally scan injury images for triage severity.
                     </p>
                 </div>
 
@@ -221,8 +332,8 @@ const AddPatientPage = () => {
                     <div className="mb-6 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg flex items-center gap-3">
                         <CheckCircle className="h-6 w-6 text-green-600" />
                         <div>
-                            <p className="font-semibold text-green-700 dark:text-green-300">Patient Added Successfully!</p>
-                            <p className="text-sm text-green-600 dark:text-green-400">The patient has been registered in the system.</p>
+                            <p className="font-semibold text-green-700 dark:text-green-300">Patient Admitted Successfully!</p>
+                            <p className="text-sm text-green-600 dark:text-green-400">The patient has been registered in the simulation and their records indexed in ChromaDB.</p>
                         </div>
                     </div>
                 )}
@@ -305,16 +416,74 @@ const AddPatientPage = () => {
                                     placeholder="Enter address"
                                 />
                             </div>
+
+                            {/* Admitting Hospital Dropdown */}
+                            <div className="md:col-span-2">
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                    <HospitalIcon className="inline h-4 w-4 mr-1 text-primary" />
+                                    Admitting Hospital *
+                                </label>
+                                {isFetchingHospitals ? (
+                                    <div className="flex items-center gap-2 text-gray-500 text-sm py-2">
+                                        <Loader2 className="h-4 w-4 animate-spin" /> Loading hospitals...
+                                    </div>
+                                ) : (
+                                    <select
+                                        value={selectedHospitalId}
+                                        onChange={(e) => setSelectedHospitalId(e.target.value)}
+                                        required
+                                        className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent transition-colors cursor-pointer"
+                                    >
+                                        {hospitals.length === 0 && (
+                                            <option value="">No active hospitals found</option>
+                                        )}
+                                        {hospitals.map((h) => (
+                                            <option key={h.id} value={h.id}>
+                                                {h.name} ({h.totalQueueSize} waiting • {h.activeDoctorCount} docs)
+                                            </option>
+                                        ))}
+                                    </select>
+                                )}
+                            </div>
                         </div>
                     </div>
 
-                    {/* Medical Information */}
+                    {/* Medical Information & File Upload */}
                     <div className="bg-card-light dark:bg-card-dark rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
                         <h2 className="text-lg font-semibold mb-4 flex items-center gap-2 text-gray-900 dark:text-white">
                             <Stethoscope className="h-5 w-5 text-primary" />
                             Medical Information
                         </h2>
                         <div className="space-y-4">
+                            {/* Manual Triage Severity Slider */}
+                            <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                                <div className="flex justify-between items-center mb-2">
+                                    <label className="text-sm font-semibold text-gray-800 dark:text-gray-200">
+                                        Triage Severity Level:
+                                    </label>
+                                    <span className={`px-3 py-1 rounded text-sm font-bold ${
+                                        severity >= 8 ? "bg-red-500 text-white" :
+                                        severity >= 4 ? "bg-yellow-500 text-white" :
+                                        "bg-green-500 text-white"
+                                    }`}>
+                                        {severity} / 10 ({severity >= 8 ? "Critical" : severity >= 4 ? "Urgent" : "Standard"})
+                                    </span>
+                                </div>
+                                <input
+                                    type="range"
+                                    min="1"
+                                    max="10"
+                                    value={severity}
+                                    onChange={(e) => setSeverity(parseInt(e.target.value))}
+                                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700 accent-primary"
+                                />
+                                <div className="flex justify-between text-xs text-gray-500 px-1 mt-1">
+                                    <span>1 (Non-Urgent)</span>
+                                    <span>5 (Moderate)</span>
+                                    <span>10 (Emergency)</span>
+                                </div>
+                            </div>
+
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                                     Chief Complaint *
@@ -329,6 +498,7 @@ const AddPatientPage = () => {
                                     placeholder="Describe the patient's main complaint or reason for visit..."
                                 />
                             </div>
+
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -369,6 +539,58 @@ const AddPatientPage = () => {
                                         placeholder="Medications..."
                                     />
                                 </div>
+                            </div>
+
+                            {/* Medical Documents Upload for RAG */}
+                            <div className="pt-2">
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 flex items-center gap-1.5">
+                                    <FileText className="h-4 w-4 text-primary" />
+                                    Upload Medical History Records (PDF, DOCX, TXT)
+                                </label>
+                                <div 
+                                    onClick={() => medicalDocsRef.current?.click()}
+                                    className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-5 text-center cursor-pointer hover:border-primary hover:bg-primary/5 transition-all"
+                                >
+                                    <Upload className="h-8 w-8 mx-auto mb-2 text-gray-400" />
+                                    <p className="text-sm text-gray-600 dark:text-gray-400 font-medium">
+                                        Select medical documents to index for RAG
+                                    </p>
+                                    <p className="text-xs text-gray-500 mt-1">PDF, DOCX, TXT up to 10MB each</p>
+                                    <input
+                                        ref={medicalDocsRef}
+                                        type="file"
+                                        multiple
+                                        accept=".pdf,.docx,.txt"
+                                        onChange={handleMedicalDocsChange}
+                                        className="hidden"
+                                    />
+                                </div>
+
+                                {uploadedMedicalFiles.length > 0 && (
+                                    <div className="mt-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                                        <p className="text-xs font-semibold text-gray-500 mb-1.5 uppercase">Selected Files ({uploadedMedicalFiles.length}):</p>
+                                        <div className="space-y-1.5">
+                                            {uploadedMedicalFiles.map((file, idx) => (
+                                                <div key={idx} className="flex items-center justify-between text-sm bg-white dark:bg-gray-900 px-3 py-1.5 rounded border border-gray-100 dark:border-gray-800">
+                                                    <span className="font-medium truncate max-w-[80%] flex items-center gap-1.5 text-gray-700 dark:text-gray-300">
+                                                        <FileText className="h-3.5 w-3.5 text-gray-400" />
+                                                        {file.name}
+                                                    </span>
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setUploadedMedicalFiles(prev => prev.filter((_, i) => i !== idx));
+                                                        }}
+                                                        className="text-red-500 hover:text-red-700 p-0.5"
+                                                    >
+                                                        <X className="h-4 w-4" />
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -517,6 +739,17 @@ const AddPatientPage = () => {
                         )}
                     </div>
 
+                    {/* Progress Loader overlay */}
+                    {isSubmitting && (
+                        <div className="fixed inset-0 bg-gray-950/60 backdrop-blur-sm z-50 flex items-center justify-center flex-col">
+                            <div className="bg-white dark:bg-gray-900 p-6 rounded-xl shadow-xl border border-gray-200 dark:border-gray-800 max-w-sm w-full text-center">
+                                <Loader2 className="h-12 w-12 text-primary animate-spin mx-auto mb-4" />
+                                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1.5">Processing Patient Registration</h3>
+                                <p className="text-sm text-gray-600 dark:text-gray-400">{ingestStatus}</p>
+                            </div>
+                        </div>
+                    )}
+
                     {/* Submit Button */}
                     <div className="flex justify-end gap-4">
                         <button
@@ -534,7 +767,7 @@ const AddPatientPage = () => {
                             {isSubmitting ? (
                                 <>
                                     <Loader2 className="h-5 w-5 animate-spin" />
-                                    Adding Patient...
+                                    Admitting...
                                 </>
                             ) : (
                                 <>

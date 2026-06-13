@@ -115,17 +115,17 @@ public class OrchestratorService {
 
                     // Persist redirection decision to database (non-critical)
                     try {
-                        Department dept = hospitalService.getDepartmentForSeverity(p.getBaseSeverity());
-                        int sourceQueue = source.getDepartmentQueueSize(dept);
-                        int targetQueue = targetHospital != null ? targetHospital.getDepartmentQueueSize(dept) : 0;
+                        Department pDept = hospitalService.getDepartmentForSeverity(p.getBaseSeverity());
+                        int sourceQueue = source.getDepartmentQueueSize(pDept);
+                        int targetQueue = targetHospital != null ? targetHospital.getDepartmentQueueSize(pDept) : 0;
                         
                         // Create detailed reason
                         String reason = String.format(
                             "Benefit score: %.2f | Source %s queue: %d patients | Target %s queue: %d patients | Distance: %.1f units | Patient severity: %d",
                             evaluation.benefitScore,
-                            dept.name(),
+                            pDept.name(),
                             sourceQueue,
-                            dept.name(),
+                            pDept.name(),
                             targetQueue,
                             evaluation.distance,
                             p.getBaseSeverity()
